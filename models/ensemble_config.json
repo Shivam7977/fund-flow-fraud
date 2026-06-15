@@ -1,0 +1,79 @@
+{
+  "weights": {
+    "isolation_forest": 0.3129,
+    "xgboost_v2": 0.3436,
+    "xgboost_exp3": 0.3435
+  },
+  "thresholds": {
+    "fraud": 0.7262,
+    "review": 0.4357
+  },
+  "features": {
+    "xgboost_v2": [
+      "hour",
+      "day_of_week",
+      "is_weekend",
+      "is_odd_hour",
+      "amount_inr",
+      "amount_log",
+      "amount_to_balance",
+      "balance_after_zero",
+      "oldbalance_inr",
+      "newbalance_inr",
+      "balance_mismatch",
+      "has_mismatch",
+      "is_structuring",
+      "is_ctr_threshold",
+      "is_rtgs_range",
+      "sender_txn_count",
+      "sender_total_amount",
+      "receiver_txn_count",
+      "receiver_total_amount",
+      "type_ATM_WITHDRAWAL",
+      "type_CASH_DEPOSIT",
+      "type_NACH",
+      "type_NEFT",
+      "type_UPI",
+      "acct_business",
+      "acct_current",
+      "acct_jan_dhan",
+      "acct_savings",
+      "acct_student",
+      "is_profile_mismatch"
+    ],
+    "xgboost_exp3": [
+      "hour",
+      "day_of_week",
+      "is_weekend",
+      "is_odd_hour",
+      "amount_inr",
+      "amount_log",
+      "amount_to_balance",
+      "balance_after_zero",
+      "oldbalance_inr",
+      "newbalance_inr",
+      "balance_mismatch",
+      "is_structuring",
+      "is_ctr_threshold",
+      "is_rtgs_range",
+      "sender_txn_count",
+      "sender_total_amount",
+      "receiver_txn_count",
+      "receiver_total_amount",
+      "type_ATM_WITHDRAWAL",
+      "type_CASH_DEPOSIT",
+      "type_NACH",
+      "type_NEFT",
+      "acct_business",
+      "acct_current",
+      "acct_jan_dhan",
+      "acct_savings",
+      "acct_student",
+      "is_profile_mismatch"
+    ]
+  },
+  "iso_normalization": {
+    "min": -0.2751,
+    "max": 0.0823
+  }
+}
