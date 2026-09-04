@@ -147,11 +147,7 @@ def get_job(job_id):
     conn.close()
     return dict(row) if row else None
 
-def create_pending_signup(name, email, username, password_hash, otp):
-    """
-    OTP verify hone tak user table mein entry nahi hoti (jaisa SkillBridge mein tha —
-    signup data temporarily rakha jaata hai). Hum ek chhota pending_signups table use karenge.
-    """
+def create_pending_signup(email, name, username, password_hash, otp):
     conn = get_connection()
     conn.execute("""
         CREATE TABLE IF NOT EXISTS pending_signups (
@@ -208,3 +204,48 @@ def update_user_auth_provider(email, new_provider):
     conn.execute("UPDATE users SET auth_provider = ? WHERE email = ?", (new_provider, email))
     conn.commit()
     conn.close()
+    
+def init_sessions_table():
+    conn = get_connection()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS sessions (
+            session_id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+    """)
+    conn.commit()
+    conn.close()
+
+
+def create_session(session_id, user_id, expires_at):
+    conn = get_connection()
+    conn.execute("""
+        INSERT INTO sessions (session_id, user_id, created_at, expires_at)
+        VALUES (?, ?, ?, ?)
+    """, (session_id, user_id, now_iso(), expires_at))
+    conn.commit()
+    conn.close()
+
+
+def get_session(session_id):
+    conn = get_connection()
+    row = conn.execute("SELECT * FROM sessions WHERE session_id = ?", (session_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def delete_session(session_id):
+    conn = get_connection()
+    conn.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
+    conn.commit()
+    conn.close()
+
+
+def get_user_by_id(user_id):
+    conn = get_connection()
+    row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None    

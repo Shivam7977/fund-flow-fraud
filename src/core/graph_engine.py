@@ -8,14 +8,9 @@ STRUCTURING_MIN = 40000
 STRUCTURING_MAX = 49999
 STRUCTURING_MIN_COUNT = 3
 
-
 def build_local_subgraph(account_id: str, new_txn: dict = None) -> tuple:
-    """
-    Ek account ki persisted history + (optionally) abhi ka naya transaction
-    combine karke local subgraph banata hai. Poore 3.27M-node graph ki
-    zaroorat nahi — sirf is account se related edges.
-    """
     history = get_account_history(account_id)
+    has_history = len(history) > 0   # 👈 new_txn add hone se PEHLE check karo
 
     rows = [{
         "nameOrig": h["nameOrig"], "nameDest": h["nameDest"],
@@ -30,14 +25,14 @@ def build_local_subgraph(account_id: str, new_txn: dict = None) -> tuple:
         })
 
     if not rows:
-        return nx.DiGraph(), pd.DataFrame()
+        return nx.DiGraph(), pd.DataFrame(), has_history
 
     df_local = pd.DataFrame(rows)
     G_local = nx.from_pandas_edgelist(
         df_local, source="nameOrig", target="nameDest",
         edge_attr=["amount_inr", "day", "hour"], create_using=nx.DiGraph()
     )
-    return G_local, df_local
+    return G_local, df_local, has_history   # 👈 teesra value return karo
 
 
 def detect_round_trip(G: nx.DiGraph) -> list:
@@ -88,14 +83,10 @@ def detect_structuring(df_local: pd.DataFrame, account_id: str) -> dict | None:
 
 
 def score_graph(account_id: str, new_txn: dict = None) -> dict:
-    """
-    Ek account ke liye graph_score + flags nikaalta hai.
-    Naya/cold account (koi history nahi) → score 0.0, flags empty (expected).
-    """
-    G_local, df_local = build_local_subgraph(account_id, new_txn)
+    G_local, df_local, has_history = build_local_subgraph(account_id, new_txn)
 
-    if df_local.empty:
-        return {"graph_score": 0.0, "flags": []}
+    if not has_history:
+        return {"graph_score": 0.0, "flags": [], "has_history": False}
 
     flags = []
     score = 0.0
@@ -120,4 +111,8 @@ def score_graph(account_id: str, new_txn: dict = None) -> dict:
         score += 0.5
         flags.append(structuring)
 
-    return {"graph_score": round(min(score / 3.0, 1.0), 4), "flags": flags}
+    return {
+        "graph_score": round(min(score / 3.0, 1.0), 4),
+        "flags": flags,
+        "has_history": True,
+    }
