@@ -14,7 +14,7 @@ class Settings:
     SECRET_KEY: str = os.getenv("SECRET_KEY", "insecure-default-change-me")
 
     # Database
-    DATABASE_PATH: str = str(BASE_DIR / os.getenv("DATABASE_PATH", "data/new_transactions.db"))
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
 
     # Static baseline data
     STATIC_CSV_PATH: str = str(BASE_DIR / "data" / "fraud_graph_data.csv")
