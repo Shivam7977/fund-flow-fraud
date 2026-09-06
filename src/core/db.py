@@ -108,6 +108,14 @@ def init_db():
         );
     """)
 
+    # ---- /predict-file feature: naye columns (purane data ko touch nahi karta) ----
+    cur.execute('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS filename TEXT;')
+    cur.execute('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS total_rows INTEGER;')
+    cur.execute('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS file_path TEXT;')
+    cur.execute('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS column_mapping TEXT;')
+    cur.execute('ALTER TABLE predictions ADD COLUMN IF NOT EXISTS job_id TEXT;')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_pred_job_id ON predictions(job_id);')
+
     conn.commit()
     cur.close()
     conn.close()
@@ -120,16 +128,16 @@ def now_iso():
 # ---------- Prediction helpers ----------
 
 def save_prediction(user_id, nameOrig, nameDest, amount_inr, hour, day,
-                     txn_type, ml_score, graph_score, final_score, risk_level):
+                     txn_type, ml_score, graph_score, final_score, risk_level, job_id=None):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
         INSERT INTO predictions
         (user_id, "nameOrig", "nameDest", amount_inr, hour, day, type,
-         ml_score, graph_score, final_score, risk_level, "isFraud_label", predicted_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s)
+         ml_score, graph_score, final_score, risk_level, "isFraud_label", predicted_at, job_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s, %s)
     """, (user_id, nameOrig, nameDest, amount_inr, hour, day, txn_type,
-          ml_score, graph_score, final_score, risk_level, now_iso()))
+          ml_score, graph_score, final_score, risk_level, now_iso(), job_id))
     conn.commit()
     cur.close()
     conn.close()
@@ -149,15 +157,40 @@ def get_account_history(account_id):
     return [dict(row) for row in rows]
 
 
+def get_predictions_by_job(job_id):
+    conn = get_connection()
+    cur = _dict_cursor(conn)
+    cur.execute('SELECT * FROM predictions WHERE job_id = %s ORDER BY predicted_at', (job_id,))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def get_activity_summary(user_id):
+    """GET /activity ke liye — existing predictions table se derive, koi naya log table nahi chahiye."""
+    conn = get_connection()
+    cur = _dict_cursor(conn)
+    cur.execute("""
+        SELECT risk_level, COUNT(*) as count FROM predictions WHERE user_id = %s GROUP BY risk_level
+    """, (user_id,))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    counts = {row["risk_level"]: row["count"] for row in rows}
+    return {"total_predictions": sum(counts.values()), "by_risk_level": counts}
+
+
 # ---------- Job helpers ----------
 
-def create_job(job_id, user_id=None):
+def create_job(job_id, user_id=None, filename=None, file_path=None,
+               column_mapping=None, total_rows=None, status="processing"):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-        INSERT INTO jobs (job_id, user_id, status, created_at)
-        VALUES (%s, %s, 'processing', %s)
-    """, (job_id, user_id, now_iso()))
+        INSERT INTO jobs (job_id, user_id, status, filename, file_path, column_mapping, total_rows, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+    """, (job_id, user_id, status, filename, file_path, column_mapping, total_rows, now_iso()))
     conn.commit()
     cur.close()
     conn.close()
@@ -176,6 +209,16 @@ def update_job(job_id, status, result_summary=None, error_message=None):
     conn.close()
 
 
+def update_job_mapping(job_id, column_mapping_json):
+    """Confirm step ke baad updated mapping save karne ke liye."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE jobs SET column_mapping = %s WHERE job_id = %s", (column_mapping_json, job_id))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
 def get_job(job_id):
     conn = get_connection()
     cur = _dict_cursor(conn)
@@ -184,6 +227,16 @@ def get_job(job_id):
     cur.close()
     conn.close()
     return dict(row) if row else None
+
+
+def get_jobs_by_user(user_id):
+    conn = get_connection()
+    cur = _dict_cursor(conn)
+    cur.execute("SELECT * FROM jobs WHERE user_id = %s ORDER BY created_at DESC", (user_id,))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return [dict(row) for row in rows]
 
 
 def create_pending_signup(email, name, username, password_hash, otp):

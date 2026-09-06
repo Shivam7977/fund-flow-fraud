@@ -8,6 +8,7 @@ from core.db import init_db
 from auth.routes import router as auth_router
 from routes.predict import router as predict_router
 from routes.predict_batch import router as predict_batch_router
+from routes.predict_file import router as predict_file_router, uploads_router
 
 
 @asynccontextmanager
@@ -41,6 +42,8 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(predict_router)
 app.include_router(predict_batch_router)
+app.include_router(predict_file_router)
+app.include_router(uploads_router)
 
 
 @app.get("/")
