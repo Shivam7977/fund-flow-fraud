@@ -50,14 +50,23 @@ def _get_account_type(account_id: str) -> str:
     return ACCOUNT_TYPE_MAP.get(account_id, "savings")
 
 
-def _get_velocity(account_id: str):
+def _get_velocity(account_id: str, batch_history: list = None):
     """
     Persisted DB se is account ki ab tak ki transactions count/sum.
+    batch_history = isi request ke batch mein pehle process ho chuke
+    transactions (abhi DB mein save nahi hue, but velocity mein count
+    hone chahiye taaki same-request structuring/velocity patterns miss
+    na hon).
     Naya account → 0, 0 (cold start — expected, not an error).
     """
     history = get_account_history(account_id)
     sent = [h for h in history if h["nameOrig"] == account_id]
     received = [h for h in history if h["nameDest"] == account_id]
+
+    if batch_history:
+        sent += [b for b in batch_history if b["nameOrig"] == account_id]
+        received += [b for b in batch_history if b["nameDest"] == account_id]
+
     return {
         "sender_txn_count": len(sent),
         "sender_total_amount": sum(h["amount_inr"] for h in sent),
@@ -66,12 +75,15 @@ def _get_velocity(account_id: str):
     }
 
 
-def build_features(txn: dict) -> pd.DataFrame:
+def build_features(txn: dict, batch_history: list = None) -> pd.DataFrame:
     """
     txn expected keys:
       nameOrig, nameDest, amount_inr, oldbalance_inr, newbalance_inr,
       hour (0-23), day_of_week (0-6), txn_type (one of ATM_WITHDRAWAL/
       CASH_DEPOSIT/NACH/NEFT/UPI)
+
+    batch_history = optional list of transactions processed earlier in
+    the same /predict-batch request (see ml_engine._get_velocity).
     """
     amount_inr = float(txn["amount_inr"])
     oldbalance_inr = float(txn["oldbalance_inr"])
@@ -111,9 +123,9 @@ def build_features(txn: dict) -> pd.DataFrame:
     row["is_ctr_threshold"] = int(amount_inr >= RBI_CTR_THRESHOLD)
     row["is_rtgs_range"] = int(amount_inr >= RBI_RTGS_MIN)
 
-    # Velocity features (from persisted DB history)
-    row.update(_get_velocity(txn["nameOrig"]))
-    receiver_velocity = _get_velocity(txn["nameDest"])
+    # Velocity features (from persisted DB history + same-batch context)
+    row.update(_get_velocity(txn["nameOrig"], batch_history))
+    receiver_velocity = _get_velocity(txn["nameDest"], batch_history)
     row["receiver_txn_count"] = receiver_velocity["receiver_txn_count"]
     row["receiver_total_amount"] = receiver_velocity["receiver_total_amount"]
 
@@ -138,8 +150,8 @@ def build_features(txn: dict) -> pd.DataFrame:
 
 # ---------- Prediction ----------
 
-def predict_ml(txn: dict) -> dict:
-    features_full = build_features(txn)
+def predict_ml(txn: dict, batch_history: list = None) -> dict:
+    features_full = build_features(txn, batch_history)
 
     # XGBoost V2 + Isolation Forest — full 30-feature set, training order se
     X_full = features_full[FEATURES_XGB2]

@@ -23,6 +23,13 @@ def init_db():
     """
     App start hote waqt ek baar call hoga (app.py se).
     Agar tables already hain toh kuch nahi hoga (IF NOT EXISTS).
+
+    NOTE: nameOrig, nameDest, isFraud_label — ye camelCase/mixed-case
+    columns hain. Postgres unquoted identifiers ko automatically
+    lowercase kar deta hai, isliye inhe hamesha double-quotes mein
+    likhna zaroori hai (CREATE TABLE mein bhi, aur har query mein bhi)
+    taaki exact case preserve rahe aur Python code (jo "nameOrig" naam
+    se access karta hai) match kare.
     """
     conn = get_connection()
     cur = conn.cursor()
@@ -46,8 +53,8 @@ def init_db():
         CREATE TABLE IF NOT EXISTS predictions (
             id SERIAL PRIMARY KEY,
             user_id INTEGER,
-            nameOrig TEXT NOT NULL,
-            nameDest TEXT NOT NULL,
+            "nameOrig" TEXT NOT NULL,
+            "nameDest" TEXT NOT NULL,
             amount_inr REAL NOT NULL,
             hour INTEGER,
             day INTEGER,
@@ -56,14 +63,14 @@ def init_db():
             graph_score REAL,
             final_score REAL,
             risk_level TEXT,
-            isFraud_label INTEGER,
+            "isFraud_label" INTEGER,
             predicted_at TEXT NOT NULL,
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
     """)
 
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_pred_nameOrig ON predictions(nameOrig);")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_pred_nameDest ON predictions(nameDest);")
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_pred_nameOrig ON predictions("nameOrig");')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_pred_nameDest ON predictions("nameDest");')
 
     # ---- jobs table ----
     cur.execute("""
@@ -78,7 +85,7 @@ def init_db():
         );
     """)
 
-    # ---- pending_signups table (ab yahin, init_db mein — pehle create_pending_signup ke andar tha) ----
+    # ---- pending_signups table ----
     cur.execute("""
         CREATE TABLE IF NOT EXISTS pending_signups (
             email TEXT PRIMARY KEY,
@@ -90,7 +97,7 @@ def init_db():
         );
     """)
 
-    # ---- sessions table (pehle init_sessions_table() alag se call hota tha — ab yahin) ----
+    # ---- sessions table ----
     cur.execute("""
         CREATE TABLE IF NOT EXISTS sessions (
             session_id TEXT PRIMARY KEY,
@@ -118,8 +125,8 @@ def save_prediction(user_id, nameOrig, nameDest, amount_inr, hour, day,
     cur = conn.cursor()
     cur.execute("""
         INSERT INTO predictions
-        (user_id, nameOrig, nameDest, amount_inr, hour, day, type,
-         ml_score, graph_score, final_score, risk_level, isFraud_label, predicted_at)
+        (user_id, "nameOrig", "nameDest", amount_inr, hour, day, type,
+         ml_score, graph_score, final_score, risk_level, "isFraud_label", predicted_at)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s)
     """, (user_id, nameOrig, nameDest, amount_inr, hour, day, txn_type,
           ml_score, graph_score, final_score, risk_level, now_iso()))
@@ -133,7 +140,7 @@ def get_account_history(account_id):
     cur = _dict_cursor(conn)
     cur.execute("""
         SELECT * FROM predictions
-        WHERE nameOrig = %s OR nameDest = %s
+        WHERE "nameOrig" = %s OR "nameDest" = %s
         ORDER BY predicted_at DESC
     """, (account_id, account_id))
     rows = cur.fetchall()

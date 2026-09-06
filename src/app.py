@@ -4,16 +4,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from config import settings
-from core.db import init_db, init_sessions_table
+from core.db import init_db
 from auth.routes import router as auth_router
-from routes.predict import router as predict_router 
+from routes.predict import router as predict_router
+from routes.predict_batch import router as predict_batch_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup — app chalu hote hi ek baar
     init_db()
-    init_sessions_table()
     print("✅ Database ready")
     yield
     # Shutdown (abhi kuch cleanup nahi chahiye)
@@ -40,6 +40,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(predict_router)
+app.include_router(predict_batch_router)
 
 
 @app.get("/")

@@ -8,14 +8,27 @@ STRUCTURING_MIN = 40000
 STRUCTURING_MAX = 49999
 STRUCTURING_MIN_COUNT = 3
 
-def build_local_subgraph(account_id: str, new_txn: dict = None) -> tuple:
+def build_local_subgraph(account_id: str, new_txn: dict = None, batch_txns: list = None) -> tuple:
     history = get_account_history(account_id)
-    has_history = len(history) > 0   # 👈 new_txn add hone se PEHLE check karo
+
+    # batch_txns = isi request ke andar PEHLE process ho chuke transactions
+    # (abhi DB mein save nahi hue, but graph detection ke liye count hone chahiye)
+    batch_rows = [
+        t for t in (batch_txns or [])
+        if t["nameOrig"] == account_id or t["nameDest"] == account_id
+    ]
+
+    has_history = len(history) > 0 or len(batch_rows) > 0   # 👈 new_txn add hone se PEHLE check karo
 
     rows = [{
         "nameOrig": h["nameOrig"], "nameDest": h["nameDest"],
         "amount_inr": h["amount_inr"], "day": h["day"], "hour": h["hour"],
     } for h in history]
+
+    rows += [{
+        "nameOrig": t["nameOrig"], "nameDest": t["nameDest"],
+        "amount_inr": t["amount_inr"], "day": t.get("day", 0), "hour": t.get("hour", 0),
+    } for t in batch_rows]
 
     if new_txn:
         rows.append({
@@ -82,8 +95,8 @@ def detect_structuring(df_local: pd.DataFrame, account_id: str) -> dict | None:
     return None
 
 
-def score_graph(account_id: str, new_txn: dict = None) -> dict:
-    G_local, df_local, has_history = build_local_subgraph(account_id, new_txn)
+def score_graph(account_id: str, new_txn: dict = None, batch_txns: list = None) -> dict:
+    G_local, df_local, has_history = build_local_subgraph(account_id, new_txn, batch_txns)
 
     if not has_history:
         return {"graph_score": 0.0, "flags": [], "has_history": False}
