@@ -29,7 +29,12 @@ FINAL_GRAPH_WEIGHT = 0.4
 
 def _combine(ml_score: float, graph_score: float, has_history: bool) -> tuple[float, str]:
     if has_history:
-        final_score = round(FINAL_ML_WEIGHT * ml_score + FINAL_GRAPH_WEIGHT * graph_score, 4)
+        blend = FINAL_ML_WEIGHT * ml_score + FINAL_GRAPH_WEIGHT * graph_score
+        # Fix 2: agar graph akela hi bahut confident hai (severe pattern jaisa
+        # structuring/round_trip), to weighted blend use neeche mat khींchne do.
+        # "Agar koi ek detector strongly bolta hai fraud hai, to flag karo" —
+        # average karke dabana nahi.
+        final_score = round(max(blend, graph_score), 4)
     else:
         # Cold-start: graph ke paas koi opinion nahi, sirf ML pe decide karo
         final_score = round(ml_score, 4)

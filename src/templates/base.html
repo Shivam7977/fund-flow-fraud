@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Fund Flow{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <div class="page">
+    <header class="navbar">
+      <a href="/" class="brand" style="text-decoration: none;">Fund Flow</a>
+      <nav>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/uploads">Uploads</a>
+      </nav>
+    </header>
+    <main style="flex: 1;">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

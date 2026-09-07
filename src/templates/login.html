@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Log in — Fund Flow{% endblock %}
+
+{% block content %}
+<div class="container narrow">
+  <h1>Log in</h1>
+  <p>Access your fraud detection dashboard.</p>
+
+  <form id="login-form">
+    <div class="field">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" required>
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required>
+    </div>
+
+    <p id="login-error" class="error-text" style="display: none;"></p>
+
+    <button type="submit" class="btn btn-primary" id="login-submit">Log in</button>
+  </form>
+
+  <div class="actions-row">
+    <a href="/auth/google/login" class="btn btn-secondary" style="text-decoration: none;">Continue with Google</a>
+    <button type="button" class="btn btn-secondary" id="guest-btn">Continue as guest</button>
+  </div>
+
+  <p class="text-center mt-24 muted">
+    Don't have an account? <a href="/signup">Sign up</a>
+  </p>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/errors.js"></script>
+<script>
+  const loginForm = document.getElementById("login-form");
+  const loginError = document.getElementById("login-error");
+  const loginSubmit = document.getElementById("login-submit");
+
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    loginError.style.display = "none";
+    loginSubmit.disabled = true;
+    loginSubmit.textContent = "Logging in...";
+
+    try {
+      const res = await fetch("/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: document.getElementById("email").value,
+          password: document.getElementById("password").value,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(getErrorMessage(data));
+      }
+
+      window.location.href = "/dashboard";
+    } catch (err) {
+      loginError.textContent = err.message;
+      loginError.style.display = "block";
+    } finally {
+      loginSubmit.disabled = false;
+      loginSubmit.textContent = "Log in";
+    }
+  });
+
+  document.getElementById("guest-btn").addEventListener("click", async () => {
+    await fetch("/auth/guest-login", { method: "POST" });
+    window.location.href = "/dashboard";
+  });
+</script>
+{% endblock %}

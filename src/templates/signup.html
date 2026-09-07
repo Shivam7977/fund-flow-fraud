@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Sign up — Fund Flow{% endblock %}
+
+{% block content %}
+<div class="container narrow">
+
+  <div id="signup-step">
+    <h1>Create account</h1>
+    <p>Set up access to your fraud detection dashboard.</p>
+
+    <form id="signup-form">
+      <div class="field">
+        <label for="name">Full name</label>
+        <input type="text" id="name" name="name" required>
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required>
+      </div>
+      <div class="field">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" required>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required>
+      </div>
+      <div class="field">
+        <label for="confirm_password">Confirm password</label>
+        <input type="password" id="confirm_password" name="confirm_password" required>
+      </div>
+
+      <p id="signup-error" class="error-text" style="display: none;"></p>
+
+      <button type="submit" class="btn btn-primary" id="signup-submit">Create account</button>
+    </form>
+
+    <p class="text-center mt-24 muted">
+      Already have an account? <a href="/login">Log in</a>
+    </p>
+  </div>
+
+  <div id="otp-step" style="display: none;">
+    <h1>Verify your email</h1>
+    <p>Enter the code sent to <strong id="otp-email-display"></strong>.</p>
+
+    <form id="otp-form">
+      <div class="field">
+        <label for="otp">Verification code</label>
+        <input type="text" id="otp" name="otp" inputmode="numeric" required>
+      </div>
+
+      <p id="otp-error" class="error-text" style="display: none;"></p>
+
+      <button type="submit" class="btn btn-primary" id="otp-submit">Verify</button>
+    </form>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/errors.js"></script>
+<script>
+  const signupForm = document.getElementById("signup-form");
+  const signupStep = document.getElementById("signup-step");
+  const otpStep = document.getElementById("otp-step");
+  const signupError = document.getElementById("signup-error");
+  const signupSubmit = document.getElementById("signup-submit");
+  let signedUpEmail = "";
+
+  signupForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    signupError.style.display = "none";
+    signupSubmit.disabled = true;
+    signupSubmit.textContent = "Creating...";
+
+    const body = {
+      name: document.getElementById("name").value,
+      email: document.getElementById("email").value,
+      username: document.getElementById("username").value,
+      password: document.getElementById("password").value,
+      confirm_password: document.getElementById("confirm_password").value,
+    };
+
+    try {
+      const res = await fetch("/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(getErrorMessage(data));
+      }
+
+      signedUpEmail = body.email;
+      document.getElementById("otp-email-display").textContent = signedUpEmail;
+      signupStep.style.display = "none";
+      otpStep.style.display = "block";
+    } catch (err) {
+      signupError.textContent = err.message;
+      signupError.style.display = "block";
+    } finally {
+      signupSubmit.disabled = false;
+      signupSubmit.textContent = "Create account";
+    }
+  });
+
+  const otpForm = document.getElementById("otp-form");
+  const otpError = document.getElementById("otp-error");
+  const otpSubmit = document.getElementById("otp-submit");
+
+  otpForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    otpError.style.display = "none";
+    otpSubmit.disabled = true;
+    otpSubmit.textContent = "Verifying...";
+
+    try {
+      const res = await fetch("/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: signedUpEmail, otp: document.getElementById("otp").value }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(getErrorMessage(data));
+      }
+
+      window.location.href = "/login";
+    } catch (err) {
+      otpError.textContent = err.message;
+      otpError.style.display = "block";
+    } finally {
+      otpSubmit.disabled = false;
+      otpSubmit.textContent = "Verify";
+    }
+  });
+</script>
+{% endblock %}

@@ -8,6 +8,16 @@ STRUCTURING_MIN = 40000
 STRUCTURING_MAX = 49999
 STRUCTURING_MIN_COUNT = 3
 
+# Fix 1: har pattern ki apni real severity — divide-by-3 jaisa dilution nahi.
+# Ek akela strong pattern (jaise structuring) bhi apni asli seriousness dikhayega.
+PATTERN_SEVERITY = {
+    "round_trip": 0.9,    # sabse serious — layering ka classic sign
+    "structuring": 0.8,   # explicit RBI/CTR evasion pattern
+    "fan_out": 0.7,
+    "fan_in": 0.7,
+}
+
+
 def build_local_subgraph(account_id: str, new_txn: dict = None, batch_txns: list = None) -> tuple:
     history = get_account_history(account_id)
 
@@ -102,30 +112,34 @@ def score_graph(account_id: str, new_txn: dict = None, batch_txns: list = None) 
         return {"graph_score": 0.0, "flags": [], "has_history": False}
 
     flags = []
-    score = 0.0
+    severities = []
 
     cycles = detect_round_trip(G_local)
     if cycles:
-        score += 1.0
         flags.append({"pattern": "round_trip", "count": len(cycles)})
+        severities.append(PATTERN_SEVERITY["round_trip"])
 
     fan_out = detect_fan_out(df_local, account_id)
     if fan_out:
-        score += 0.9
         flags.append(fan_out)
+        severities.append(PATTERN_SEVERITY["fan_out"])
 
     fan_in = detect_fan_in(df_local, account_id)
     if fan_in:
-        score += 0.9
         flags.append(fan_in)
+        severities.append(PATTERN_SEVERITY["fan_in"])
 
     structuring = detect_structuring(df_local, account_id)
     if structuring:
-        score += 0.5
         flags.append(structuring)
+        severities.append(PATTERN_SEVERITY["structuring"])
+
+    # Fix 1: sabse severe pattern ki value lo (max), sabko average karke dilute mat karo.
+    # Ek akela strong pattern (jaise structuring) bhi apni asli severity dikhayega.
+    graph_score = max(severities) if severities else 0.0
 
     return {
-        "graph_score": round(min(score / 3.0, 1.0), 4),
+        "graph_score": round(graph_score, 4),
         "flags": flags,
         "has_history": True,
     }
