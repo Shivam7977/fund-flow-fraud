@@ -64,13 +64,13 @@ def build_flagged_subgraph_html(job_id: str) -> str | None:
 def get_flagged_graph(job_id: str):
     job = get_job(job_id)
     if not job:
-        raise HTTPException(status_code=404, detail="Job nahi mila")
+        raise HTTPException(status_code=404, detail="Job not found")
 
     if job["status"] != "done":
-        raise HTTPException(status_code=400, detail=f"Job abhi ready nahi hai (status: {job['status']})")
+        raise HTTPException(status_code=400, detail=f"Job is not ready yet (status: {job['status']})")
 
     html_path = build_flagged_subgraph_html(job_id)
     if html_path is None:
-        raise HTTPException(status_code=404, detail="Is upload mein koi FRAUD/REVIEW transaction flag nahi hua")
+        raise HTTPException(status_code=404, detail="No FRAUD/REVIEW transactions were flagged in this upload")
 
     return FileResponse(html_path, media_type="text/html")

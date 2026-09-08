@@ -18,9 +18,13 @@ def home(request: Request):
 
 @router.get("/signup")
 def signup_page(request: Request):
-    return templates.TemplateResponse("signup.html", {"request": request})
+    # NOTE: new-style call (request first) — old style
+    # TemplateResponse("name", {"request": request}) triggers a
+    # Jinja2/Starlette cache-key bug (TypeError: unhashable type: 'dict')
+    # on some version combinations.
+    return templates.TemplateResponse(request=request, name="signup.html")
 
 
 @router.get("/login")
 def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="login.html")

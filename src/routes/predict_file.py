@@ -110,7 +110,7 @@ def process_file_job(job_id: str, file_path: str, mapping: dict, user_id, is_gue
 @router.post("/file")
 async def upload_file(request: Request, background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     if not file.filename.lower().endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Sirf CSV files supported hain")
+        raise HTTPException(status_code=400, detail="Only CSV files are supported")
 
     user = get_current_user(request)
     is_guest = user is None or user.get("guest") is True
@@ -121,7 +121,7 @@ async def upload_file(request: Request, background_tasks: BackgroundTasks, file:
 
     if analysis["missing_hard"]:
         raise HTTPException(status_code=422, detail={
-            "error": "Zaroori columns CSV mein nahi mile",
+            "error": "Required columns not found in CSV",
             "missing_required": analysis["missing_hard"],
             "detected_columns": list(df.columns),
         })
@@ -141,9 +141,9 @@ async def upload_file(request: Request, background_tasks: BackgroundTasks, file:
             "job_id": job_id,
             "status": "pending_confirmation",
             "message": (
-                "Kuch optional columns CSV mein nahi mile. Inka data POST "
-                f"/predict/file/{job_id}/confirm mein column_mapping se bhejo, "
-                "ya proceed_with_defaults: true bhejo taaki safe default values se aage badhein."
+                f"Some optional columns were not found in the CSV. Provide their "
+                f"data via column_mapping at POST /predict/file/{job_id}/confirm, "
+                "or send proceed_with_defaults: true to continue with safe defaults."
             ),
             "missing_optional_fields": analysis["missing_soft"],
             "detected_mapping": analysis["mapping"],
@@ -163,7 +163,7 @@ async def upload_file(request: Request, background_tasks: BackgroundTasks, file:
 def confirm_file(job_id: str, body: ConfirmIn, request: Request, background_tasks: BackgroundTasks):
     job = get_job(job_id)
     if not job or job["status"] != "pending_confirmation":
-        raise HTTPException(status_code=404, detail="Job nahi mila ya already process ho chuka hai")
+        raise HTTPException(status_code=404, detail="Job not found or already processed")
 
     user = get_current_user(request)
     is_guest = user is None or user.get("guest") is True
@@ -178,7 +178,7 @@ def confirm_file(job_id: str, body: ConfirmIn, request: Request, background_task
         return {
             "job_id": job_id,
             "status": "pending_confirmation",
-            "message": "Abhi bhi ye fields missing hain. column_mapping do ya proceed_with_defaults: true bhejo.",
+            "message": "These fields are still missing. Provide column_mapping or send proceed_with_defaults: true.",
             "missing_optional_fields": still_missing,
         }
 
@@ -192,7 +192,7 @@ def confirm_file(job_id: str, body: ConfirmIn, request: Request, background_task
 def get_file_job_status(job_id: str):
     job = get_job(job_id)
     if not job:
-        raise HTTPException(status_code=404, detail="Job nahi mila")
+        raise HTTPException(status_code=404, detail="Job not found")
     return job
 
 
@@ -202,7 +202,7 @@ def get_file_job_status(job_id: str):
 def list_uploads(request: Request):
     user = get_current_user(request)
     if user is None or user.get("guest") is True:
-        raise HTTPException(status_code=401, detail="Upload history dekhne ke liye login zaroori hai")
+        raise HTTPException(status_code=401, detail="Login required to view upload history")
     return {"uploads": get_jobs_by_user(user["id"])}
 
 
@@ -210,11 +210,11 @@ def list_uploads(request: Request):
 def get_upload_detail(job_id: str, request: Request):
     user = get_current_user(request)
     if user is None or user.get("guest") is True:
-        raise HTTPException(status_code=401, detail="Login zaroori hai")
+        raise HTTPException(status_code=401, detail="Login required")
 
     job = get_job(job_id)
     if not job or job["user_id"] != user["id"]:
-        raise HTTPException(status_code=404, detail="Upload nahi mila")
+        raise HTTPException(status_code=404, detail="Upload not found")
 
     return {"job": job, "predictions": get_predictions_by_job(job_id)}
 
@@ -223,5 +223,5 @@ def get_upload_detail(job_id: str, request: Request):
 def get_activity(request: Request):
     user = get_current_user(request)
     if user is None or user.get("guest") is True:
-        raise HTTPException(status_code=401, detail="Login zaroori hai")
+        raise HTTPException(status_code=401, detail="Login required")
     return get_activity_summary(user["id"])
