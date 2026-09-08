@@ -1,31 +1,57 @@
-/* ---------- Design tokens ---------- */
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
 :root {
-  --bg: #FAFAF8;
+  --bg: #FAF9F6;
   --surface: #FFFFFF;
-  --border: #E5E3DC;
-  --text-primary: #1A1A1A;
-  --text-secondary: #6B6B65;
-  --text-muted: #A3A399;
+  --surface-muted: #FBFAF7;
+  --border: #E7E5E0;
+  --border-strong: #D9D6CF;
 
-  --accent: #1A1A1A;
-  --accent-hover: #333333;
+  --text-primary: #171614;
+  --text-secondary: #6B6862;
+  --text-muted: #A6A29A;
 
-  --normal-bg: #EAF3DE;
-  --normal-text: #3B6D11;
-  --review-bg: #FAEEDA;
-  --review-text: #854F0B;
-  --fraud-bg: #FCEBEB;
-  --fraud-text: #A32D2D;
+  /* Subtle pastel accents — used sparingly for cards/status/highlights only */
+  --accent-lavender: #EFEAFB;
+  --accent-lavender-text: #6B4FBB;
+  --accent-cyan: #E7F7FA;
+  --accent-cyan-text: #1F7A8C;
+  --accent-mint: #EAF7F0;
+  --accent-mint-text: #2F7D5A;
+  --accent-blue: #EDF3FD;
+  --accent-blue-text: #3A5FA0;
+
+  /* Status semantics kept, softened to match pastel language */
+  --normal-bg: #EAF7F0;
+  --normal-text: #2F7D5A;
+  --review-bg: #FBF2E4;
+  --review-text: #96631A;
+  --fraud-bg: #FBEBEC;
+  --fraud-text: #B23A44;
+
+  --accent-dark: #171614;
+  --accent-dark-hover: #2E2C29;
 
   --font-display: 'Source Serif 4', Georgia, serif;
-  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'SF Mono', 'Consolas', monospace;
 
-  --radius: 10px;
-  --radius-lg: 16px;
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 18px;
+
+  --shadow-sm: 0 1px 2px rgba(23, 22, 20, 0.04);
+  --shadow-md: 0 6px 20px rgba(23, 22, 20, 0.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0.001ms !important; animation-duration: 0.001ms !important; }
 }
 
 * { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
@@ -35,23 +61,34 @@ body {
   font-size: 15px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 h1, h2, h3 {
   font-family: var(--font-display);
   font-weight: 500;
-  line-height: 1.25;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
   margin: 0 0 0.5rem;
+  color: var(--text-primary);
 }
-h1 { font-size: 28px; }
-h2 { font-size: 22px; }
+h1 { font-size: 32px; }
+h2 { font-size: 24px; }
 h3 { font-size: 18px; }
 
 p { margin: 0 0 1rem; color: var(--text-secondary); }
 
-a { color: inherit; }
+a { color: inherit; text-decoration: none; }
+a:hover { color: var(--text-primary); }
 
-/* ---------- Layout ---------- */
+button:focus-visible, a:focus-visible, input:focus-visible {
+  outline: 2px solid var(--accent-lavender-text);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
 .page {
   min-height: 100vh;
   display: flex;
@@ -67,50 +104,115 @@ a { color: inherit; }
 
 @media (min-width: 900px) {
   .container { max-width: 960px; padding: 40px 32px; }
-  .container.narrow { max-width: 480px; }
+  .container.narrow { max-width: 440px; }
 }
 
-/* ---------- Nav ---------- */
+/* ============================================================
+   NAVIGATION — logo left, links center, minimal border, sticky
+   ============================================================ */
 .navbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 18px 20px;
   border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  background: rgba(250, 249, 246, 0.92);
+  backdrop-filter: blur(6px);
 }
 .navbar .brand {
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 500;
+  letter-spacing: -0.01em;
 }
 .navbar nav {
   display: none;
 }
 @media (min-width: 900px) {
-  .navbar { padding: 16px 32px; }
-  .navbar nav { display: flex; gap: 24px; font-size: 14px; color: var(--text-secondary); }
+  .navbar { padding: 18px 32px; }
+  .navbar nav {
+    display: flex;
+    gap: 32px;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+  .navbar nav a { transition: color 0.15s ease; }
+  .navbar nav a:hover { color: var(--text-primary); }
 }
 
-/* ---------- Card ---------- */
+/* ============================================================
+   AUTH PAGES — centered editorial card
+   ============================================================ */
+.auth-wrap {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 56px 20px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 36px 32px;
+}
+
+@media (min-width: 640px) {
+  .auth-card { padding: 44px 40px; }
+}
+
+.auth-card h1 { margin-bottom: 8px; }
+.auth-card > p:first-of-type { margin-bottom: 28px; }
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.divider::before, .divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ============================================================
+   CARDS (general purpose)
+   ============================================================ */
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 24px;
+  box-shadow: var(--shadow-sm);
 }
-
 .card + .card { margin-top: 16px; }
 
-/* ---------- Metric card ---------- */
 .metric-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px;
+  box-shadow: var(--shadow-sm);
 }
 .metric-card .label {
-  font-size: 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--text-muted);
   margin-bottom: 4px;
 }
@@ -120,70 +222,102 @@ a { color: inherit; }
   font-weight: 600;
 }
 
-/* ---------- Buttons ---------- */
+/* ============================================================
+   BUTTONS
+   ============================================================ */
 button, .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   border: none;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   padding: 12px 20px;
   font-family: var(--font-body);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   width: 100%;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
 }
 
 .btn-primary {
-  background: var(--accent);
+  background: var(--accent-dark);
   color: #fff;
 }
-.btn-primary:hover { background: var(--accent-hover); }
-.btn-primary:disabled { background: var(--text-muted); cursor: not-allowed; }
+.btn-primary:hover { background: var(--accent-dark-hover); }
+.btn-primary:active { transform: translateY(1px); }
+.btn-primary:disabled { background: var(--text-muted); cursor: not-allowed; transform: none; }
 
 .btn-secondary {
-  background: transparent;
-  border: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   color: var(--text-primary);
 }
-.btn-secondary:hover { border-color: var(--text-secondary); }
+.btn-secondary:hover { border-color: var(--text-secondary); background: var(--surface-muted); }
 
 @media (min-width: 900px) {
   .btn { width: auto; }
 }
 
-/* ---------- Forms ---------- */
-.field { margin-bottom: 16px; }
+/* ============================================================
+   ACTIONS ROW (mobile: stacked, larger screens: side-by-side)
+   ============================================================ */
+.actions-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.actions-row .btn { width: 100%; text-align: center; }
+
+@media (min-width: 480px) {
+  .actions-row { flex-direction: row; }
+  .actions-row .btn { width: auto; flex: 1; }
+}
+
+/* ============================================================
+   FORMS
+   ============================================================ */
+.field { margin-bottom: 18px; }
 .field label {
   display: block;
-  font-size: 13px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--text-secondary);
-  margin-bottom: 6px;
+  margin-bottom: 7px;
 }
 .field input, .field select {
   width: 100%;
   padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   font-size: 15px;
   font-family: var(--font-body);
   background: var(--surface);
   color: var(--text-primary);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .field input:focus, .field select:focus {
   outline: none;
-  border-color: var(--text-secondary);
+  border-color: var(--accent-lavender-text);
+  box-shadow: 0 0 0 3px rgba(107, 79, 187, 0.1);
 }
 
 .error-text {
+  background: var(--fraud-bg);
   color: var(--fraud-text);
   font-size: 13px;
-  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  margin-top: -4px;
+  margin-bottom: 16px;
 }
 
-/* ---------- Status chips ---------- */
+/* ============================================================
+   STATUS CHIPS
+   ============================================================ */
 .chip {
   display: inline-flex;
   align-items: center;
@@ -196,23 +330,11 @@ button, .btn {
 .chip-review { background: var(--review-bg); color: var(--review-text); }
 .chip-fraud  { background: var(--fraud-bg); color: var(--fraud-text); }
 
-/* ---------- Utility ---------- */
+/* ============================================================
+   UTILITY
+   ============================================================ */
 .text-center { text-align: center; }
 .mt-24 { margin-top: 24px; }
 .mb-24 { margin-bottom: 24px; }
 .muted { color: var(--text-muted); font-size: 13px; }
 .flex-between { display: flex; align-items: center; justify-content: space-between; }
-
-/* ---------- Actions row (mobile: stacked, larger screens: side-by-side) ---------- */
-.actions-row {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 24px;
-}
-.actions-row .btn { width: 100%; text-align: center; }
-
-@media (min-width: 480px) {
-  .actions-row { flex-direction: row; }
-  .actions-row .btn { width: auto; flex: 1; }
-}
