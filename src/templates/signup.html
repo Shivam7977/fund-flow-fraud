@@ -2,9 +2,9 @@
 {% block title %}Sign up — Fund Flow{% endblock %}
 
 {% block content %}
-<div class="container narrow">
+<div class="auth-wrap">
 
-  <div id="signup-step">
+  <div id="signup-step" class="auth-card">
     <h1>Create account</h1>
     <p>Set up access to your fraud detection dashboard.</p>
 
@@ -36,11 +36,11 @@
     </form>
 
     <p class="text-center mt-24 muted">
-      Already have an account? <a href="/login">Log in</a>
+      Already have an account? <a href="/login" style="text-decoration: underline;">Log in</a>
     </p>
   </div>
 
-  <div id="otp-step" style="display: none;">
+  <div id="otp-step" class="auth-card" style="display: none;">
     <h1>Verify your email</h1>
     <p>Enter the code sent to <strong id="otp-email-display"></strong>.</p>
 
