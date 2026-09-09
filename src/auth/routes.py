@@ -32,7 +32,7 @@ def _set_session_cookie(response: Response, user_id: int):
 @router.post("/signup", response_model=MessageResponse)
 def signup(data: SignupRequest):
     if get_user_by_email(data.email):
-        raise HTTPException(400, "Yeh email already registered hai")
+        raise HTTPException(400, "This email is already registered")
 
     password_hash = hash_password(data.password)
     otp = generate_otp()
@@ -40,23 +40,23 @@ def signup(data: SignupRequest):
 
     sent = send_otp_email(data.email, otp)
     if not sent:
-        raise HTTPException(500, "OTP email bhejne mein dikkat aayi, dobara try karo")
+        raise HTTPException(500, "There was a problem sending the OTP email. Please try again")
 
-    return MessageResponse(status="ok", message="OTP bhej diya gaya hai, email check karo")
+    return MessageResponse(status="ok", message="OTP has been sent. Please check your email")
 
 
 @router.post("/verify-otp", response_model=MessageResponse)
 def verify_otp(data: OTPVerifyRequest):
     pending = get_pending_signup(data.email)
     if not pending:
-        raise HTTPException(400, "Koi pending signup nahi mila is email ke liye")
+        raise HTTPException(400, "No pending signup was found for this email address")
 
     if is_otp_expired(pending["otp_created_at"]):
         delete_pending_signup(data.email)
-        raise HTTPException(400, "OTP expire ho chuka hai, dobara signup karo")
+        raise HTTPException(400, "The OTP has expired. Please sign up again")
 
     if pending["otp"] != data.otp:
-        raise HTTPException(400, "Galat OTP")
+        raise HTTPException(400, "Wrong OTP")
 
     create_user(
         name=pending["name"], email=data.email, username=pending["username"],
@@ -64,7 +64,7 @@ def verify_otp(data: OTPVerifyRequest):
     )
     delete_pending_signup(data.email)
 
-    return MessageResponse(status="ok", message="Account ban gaya, ab login karo")
+    return MessageResponse(status="ok", message="Account created successfully. Please log in")
 
 
 # ---------- Login / Logout ----------
@@ -73,10 +73,10 @@ def verify_otp(data: OTPVerifyRequest):
 def login(data: LoginRequest, response: Response):
     user = get_user_by_email(data.email)
     if not user or not user["password_hash"]:
-        raise HTTPException(401, "Email ya password galat hai")
+        raise HTTPException(401, "Incorrect email or password")
 
     if not verify_password(data.password, user["password_hash"]):
-        raise HTTPException(401, "Email ya password galat hai")
+        raise HTTPException(401, "Incorrect email or password")
 
     _set_session_cookie(response, user["id"])
     return MessageResponse(status="ok", message="Login successful")
@@ -88,7 +88,7 @@ def logout(request: Request, response: Response):
     if session_id and session_id != "guest":
         delete_session(session_id)
     response.delete_cookie(settings.SESSION_COOKIE_NAME)
-    return MessageResponse(status="ok", message="Logout ho gaya")
+    return MessageResponse(status="ok", message="You have been logged out successfully")
 
 
 # ---------- Guest ----------
@@ -116,7 +116,7 @@ async def google_callback(request: Request, response: Response):
     try:
         user = await handle_google_callback(request)
     except Exception as e:
-        raise HTTPException(400, f"Google login fail hua: {e}")
+        raise HTTPException(400, f"Google login failed. Please try again: {e}")
 
     _set_session_cookie(response, user["id"])
     return {"status": "ok", "message": "Google login successful", "user": user["email"]}
