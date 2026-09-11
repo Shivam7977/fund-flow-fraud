@@ -25,3 +25,21 @@ def signup_page(request: Request):
 @router.get("/login")
 def login_page(request: Request):
     return templates.TemplateResponse(request=request, name="login.html")
+
+@router.get("/dashboard")
+def dashboard_page(request: Request):
+    user = get_current_user(request)
+
+    if user is None:
+        return RedirectResponse(url="/login", status_code=303)
+
+    is_guest = user.get("guest") is True
+
+    return templates.TemplateResponse(
+        request=request,
+        name="dashboard.html",
+        context={
+            "user": user,
+            "is_guest": is_guest,
+        },
+    )
