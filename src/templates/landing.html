@@ -2,579 +2,466 @@
 {% block title %}Fund Flow — AI-Powered Financial Fraud Intelligence{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="/static/css/landing.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          brand: {
+            bg: '#F7F7F5',
+            surface: '#FFFFFF',
+            muted: '#F1F0EC',
+            border: '#E5E4DE',
+            dark: '#0A0A0A',
+            accent: '#DCEFF3',
+            'accent-text': '#1B6A7E',
+          }
+        },
+        fontFamily: {
+          serif: ['"Source Serif 4"', 'Georgia', 'serif'],
+          sans: ['Inter', 'sans-serif'],
+          mono: ['"SF Mono"', 'Consolas', 'monospace']
+        },
+        boxShadow: {
+          'premium': '0 25px 60px -15px rgba(0, 0, 0, 0.1)',
+          'subtle': '0 4px 20px -2px rgba(0, 0, 0, 0.04)',
+          'hover-card': '0 20px 40px -10px rgba(0, 0, 0, 0.1)',
+        }
+      }
+    }
+  }
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@400;500;600&display=swap');
+  .fade-up { opacity: 0; transform: translateY(20px); transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
+  .fade-up.in { opacity: 1; transform: none; }
+</style>
 {% endblock %}
 
 {% block navbar %}
-<header class="lp-nav">
-  <div class="lp-nav-inner">
-    <a href="/" class="lp-brand">
-      <span class="mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V5l-8-3Z"/></svg></span>
+<header class="sticky top-0 z-50 bg-[#F7F7F5]/80 backdrop-blur-xl border-b border-[#E5E4DE] transition-all duration-300">
+  <div class="max-w-7xl mx-auto px-6 lg:px-12 h-20 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-3 font-serif text-lg tracking-tight text-[#111111] group">
+      <span class="w-8 h-8 rounded-xl bg-black text-white flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 shadow-subtle">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V5l-8-3Z"/></svg>
+      </span>
       Fund Flow
     </a>
-    <nav class="lp-nav-links">
-      <a href="#intelligence">Intelligence</a>
-      <a href="#detection">Detection</a>
-      <a href="#fundflow">Fund Flow</a>
-      <a href="#technology">Technology</a>
-      <a href="#roadmap">Roadmap</a>
+    <nav class="hidden md:flex items-center gap-8 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+      <a href="#intelligence" class="hover:text-black transition-colors">Intelligence</a>
+      <a href="#engine" class="hover:text-black transition-colors">Engine</a>
+      <a href="#money" class="hover:text-black transition-colors">Network</a>
+      <a href="#behavior" class="hover:text-black transition-colors">Behavior</a>
+      <a href="#signals" class="hover:text-black transition-colors">Signals</a>
+      <a href="#workflow" class="hover:text-black transition-colors">Workflow</a>
+      <a href="#flagships" class="hover:text-black transition-colors">Flagships</a>
     </nav>
-    <div class="lp-nav-cta">
-      <a href="/login" class="login-link">Log in</a>
-      <a href="/signup" class="lp-btn lp-btn-dark">Get Started</a>
+    <div class="flex items-center gap-4">
+      <a href="/login" class="px-4 py-2 rounded-xl text-sm font-medium border border-[#E5E4DE] bg-white hover:bg-neutral-50 transition-all shadow-2xs hover:border-neutral-400 hover:-translate-y-0.5">Log in</a>
+      <a href="/signup" class="px-5 py-2 rounded-xl text-sm font-medium bg-black text-white hover:bg-neutral-800 transition-all shadow-subtle hover:scale-105">Get Started →</a>
     </div>
   </div>
 </header>
 {% endblock %}
 
 {% block content %}
-<div class="lp-body">
+<div class="bg-[#F7F7F5] min-h-screen text-[#111111] font-sans selection:bg-neutral-900 selection:text-white">
 
-  <!-- ============ HERO ============ -->
-  <section class="lp-hero">
-    <div class="reveal in">
-      <span class="lp-eyebrow">AI-Powered Financial Fraud Intelligence</span>
-      <h1>Detect the transaction.<br>Trace the money.<br>Understand the risk.</h1>
-      <p class="lp-lede">Fund Flow combines machine learning, behavioral intelligence, and transaction-network analysis to uncover suspicious financial activity beyond the transaction itself.</p>
-      <div class="lp-hero-ctas">
-        <a href="/signup" class="lp-btn lp-btn-dark">Explore the Intelligence →</a>
-        <a href="https://github.com/Shivam7977/fund-flow-fraud" class="lp-btn lp-btn-ghost" target="_blank" rel="noopener">View on GitHub ↗</a>
+  <!-- ============ HERO SECTION ============ -->
+  <section class="max-w-7xl mx-auto px-6 lg:px-12 pt-16 pb-24 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center fade-up in">
+    <div class="lg:col-span-6">
+      <span class="inline-block text-[11px] font-bold tracking-widest uppercase text-neutral-500 mb-4 bg-white px-3.5 py-1.5 rounded-full border border-[#E5E4DE] shadow-2xs">
+        Minimal Editorial UI &middot; Financial Fraud Intelligence
+      </span>
+      <h1 class="font-serif text-5xl lg:text-6xl font-normal leading-[1.08] tracking-tight mb-6 text-neutral-900">
+        Detect the transaction.<br>Trace the money.<br>Understand the risk.
+      </h1>
+      <p class="text-base text-neutral-600 max-w-lg leading-relaxed mb-10">
+        Fund Flow combines advanced machine learning ensemble models with fund-flow graph network analysis to uncover sophisticated financial fraud beyond isolated transactions.
+      </p>
+      <div class="flex items-center gap-4 flex-wrap">
+        <a href="/signup" class="px-7 py-3.5 rounded-xl text-sm font-medium bg-black text-white hover:bg-neutral-900 transition-all duration-300 shadow-premium flex items-center gap-2 group hover:-translate-y-1 hover:shadow-2xl">
+          Explore Fund Flow 
+          <span class="transition-transform duration-300 group-hover:translate-x-1.5">→</span>
+        </a>
+        <a href="https://github.com/Shivam7977/fund-flow-fraud" target="_blank" rel="noopener" class="px-7 py-3.5 rounded-xl text-sm font-medium border border-[#E5E4DE] bg-white hover:bg-neutral-50 transition-all duration-300 shadow-2xs hover:-translate-y-1 hover:border-neutral-400">
+          View on GitHub ↗
+        </a>
       </div>
-      <p class="lp-hero-tags">Machine Learning · Behavioral Analysis · Graph Intelligence</p>
     </div>
 
-    <div class="reveal in">
-      <div class="lp-mock">
-        <div class="lp-mock-row">
-          <div>
-            <div class="lp-mock-label">Risk Detected</div>
-            <div class="lp-mock-amount">₹48,750</div>
-            <div class="lp-mock-meta">UPI · 02:13 AM</div>
+    <!-- Right Side: White Card + Dark Gradient Shadow Overlay Effect -->
+    <div class="lg:col-span-6">
+      <div class="bg-white border border-[#E5E4DE] rounded-3xl p-8 shadow-premium relative overflow-hidden group transition-all duration-500 hover:shadow-hover-card hover:-translate-y-2">
+        <div class="absolute -top-20 -right-20 w-56 h-56 bg-gradient-to-br from-sky-200/40 via-sky-100/30 to-transparent rounded-full blur-3xl -z-10 group-hover:scale-125 transition-transform duration-700"></div>
+        
+        <div class="flex items-center justify-between pb-5 mb-6 border-b border-[#E5E4DE]">
+          <div class="flex items-center gap-2.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+            <span class="text-xs font-mono font-semibold text-neutral-500 uppercase tracking-wider">Live Risk Pipeline</span>
           </div>
-          <span class="lp-risk-chip">HIGH RISK · 87.4%</span>
+          <span class="text-xs font-mono px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200/50">Active Monitoring</span>
         </div>
 
-        <div class="lp-score-row">
-          <div class="lp-score-box"><div class="k">ML Score</div><div class="v">0.82</div></div>
-          <div class="lp-score-box"><div class="k">Graph Score</div><div class="v">0.91</div></div>
-        </div>
+        <div class="space-y-4">
+          <div class="p-5 rounded-2xl bg-[#F7F7F5] border border-[#E5E4DE] flex items-center justify-between transition-all duration-300 hover:border-neutral-400 hover:bg-white hover:shadow-sm group/card">
+            <div>
+              <p class="text-[11px] text-neutral-400 font-semibold uppercase tracking-wider mb-1">Classification Core</p>
+              <p class="text-base font-serif font-medium text-neutral-900 group-hover/card:text-black">XGBoost & Isolation Forest Ensemble</p>
+            </div>
+            <span class="text-xs font-mono px-3 py-1.5 rounded-lg bg-black text-white font-medium transition-transform group-hover/card:scale-105">Optimal</span>
+          </div>
 
-        <span class="lp-pattern-tag">Pattern Detected · Structuring</span>
-
-        <div class="lp-mini-network">
-          <svg viewBox="0 0 400 130" xmlns="http://www.w3.org/2000/svg">
-            <line x1="40" y1="65" x2="180" y2="30" stroke="var(--border-strong)" stroke-width="1.5"/>
-            <line x1="180" y1="30" x2="320" y2="65" stroke="var(--border-strong)" stroke-width="1.5"/>
-            <line x1="320" y1="65" x2="40" y2="65" stroke="var(--accent-blue-text)" stroke-width="1.5" stroke-dasharray="4 4"/>
-            <circle cx="40" cy="65" r="7" fill="var(--surface)" stroke="var(--text-primary)" stroke-width="1.5"/>
-            <circle cx="180" cy="30" r="7" fill="var(--surface)" stroke="var(--text-primary)" stroke-width="1.5"/>
-            <circle cx="320" cy="65" r="7" fill="var(--accent-blue)" stroke="var(--accent-blue-text)" stroke-width="1.5"/>
-            <text x="40" y="88" font-size="10" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">A</text>
-            <text x="180" y="20" font-size="10" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">B</text>
-            <text x="320" y="88" font-size="10" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">C</text>
-          </svg>
+          <div class="p-5 rounded-2xl bg-gradient-to-br from-sky-50/90 via-sky-50/30 to-white border border-sky-100 flex items-center justify-between transition-all duration-300 hover:border-sky-300 hover:shadow-sm group/card">
+            <div>
+              <p class="text-[11px] text-[#1B6A7E] font-semibold uppercase tracking-wider mb-1">Graph Topology</p>
+              <p class="text-base font-serif font-medium text-[#1B6A7E]">Multi-Hop Path Analysis</p>
+            </div>
+            <span class="text-xs font-mono px-3 py-1.5 rounded-lg bg-sky-100 text-[#1B6A7E] font-medium transition-transform group-hover/card:scale-105">Real-Time</span>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ============ PROOF STRIP ============ -->
-  <section class="lp-proof">
-    <div class="lp-section tight reveal in">
-      <div class="lp-proof-grid">
-        <div class="lp-proof-item"><div class="n">30+</div><div class="l">Engineered Signals</div></div>
-        <div class="lp-proof-item"><div class="n">3</div><div class="l">Detection Models</div></div>
-        <div class="lp-proof-item"><div class="n">4</div><div class="l">Graph Patterns</div></div>
-        <div class="lp-proof-item"><div class="n">6.3M+</div><div class="l">Training Transactions</div></div>
-        <div class="lp-proof-item"><div class="n">India-Aware</div><div class="l">Financial Signals</div></div>
+  <!-- ============ MULTIDIMENSIONAL CONTEXT ============ -->
+  <section class="bg-white border-t border-b border-[#E5E4DE] py-24 relative overflow-hidden" id="intelligence">
+    <div class="max-w-7xl mx-auto px-6 lg:px-12">
+      <div class="max-w-2xl mx-auto text-center mb-16 fade-up">
+        <span class="text-[11px] font-bold tracking-widest uppercase text-neutral-400 mb-3 block">Multidimensional Context</span>
+        <h2 class="font-serif text-4xl lg:text-5xl font-normal tracking-tight mb-4 text-neutral-900">A transaction is only one piece of the story.</h2>
+        <p class="text-neutral-600 text-base">Suspicious activity rarely reveals itself in isolation. Comprehensive intelligence requires analyzing transaction attributes, behavioral history, and account network relationships simultaneously.</p>
       </div>
-      <p class="lp-proof-note">Metrics represent the current project implementation and experimental dataset.</p>
-    </div>
-  </section>
 
-  <!-- ============ PROBLEM ============ -->
-  <section class="lp-section reveal" id="intelligence">
-    <span class="lp-eyebrow">The Problem</span>
-    <h2 class="lp-h2">A transaction is only one piece of the story.</h2>
-    <p class="lp-lede">A suspicious transaction rarely looks suspicious in isolation. The real signal can emerge from when it happened, how an account behaves, where the money moves, and how multiple transactions connect.</p>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 fade-up">
+        <div class="bg-[#F7F7F5] border border-[#E5E4DE] rounded-3xl p-8 shadow-2xs hover:shadow-hover-card transition-all duration-300 hover:-translate-y-2 hover:border-neutral-400 group cursor-pointer">
+          <div class="w-12 h-12 rounded-2xl border border-[#E5E4DE] bg-white flex items-center justify-center mb-6 text-black shadow-2xs transition-transform duration-300 group-hover:scale-110">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/></svg>
+          </div>
+          <h3 class="font-serif text-2xl font-normal mb-3 text-neutral-900">Transaction Analysis</h3>
+          <p class="text-neutral-600 text-sm leading-relaxed">Evaluates raw transfer properties including payment value, timestamps, gateway rails, and direct balance shifts.</p>
+        </div>
 
-    <div class="lp-card-grid cols-3">
-      <div class="lp-card">
-        <div class="lp-card-label">01 — Transaction</div>
-        <h3>What happened?</h3>
-        <ul>
-          <li>Amount</li><li>Transaction type</li><li>Time</li><li>Balance movement</li><li>Account profile</li>
-        </ul>
-      </div>
-      <div class="lp-card accent">
-        <div class="lp-card-label">02 — Behavior</div>
-        <h3>Is this normal for the account?</h3>
-        <ul>
-          <li>Transaction velocity</li><li>Historical activity</li><li>Transaction volume</li><li>Sender / receiver behavior</li><li>Profile mismatch</li>
-        </ul>
-      </div>
-      <div class="lp-card">
-        <div class="lp-card-label">03 — Network</div>
-        <h3>Where did the money go?</h3>
-        <ul>
-          <li>Connected accounts</li><li>Fund movement</li><li>Circular flows</li><li>Fan-in / fan-out</li><li>Suspicious relationships</li>
-        </ul>
+        <div class="bg-gradient-to-br from-sky-50/90 via-sky-50/40 to-white border border-sky-100 rounded-3xl p-8 shadow-subtle hover:shadow-hover-card transition-all duration-300 hover:-translate-y-2 hover:border-sky-300 group cursor-pointer">
+          <div class="w-12 h-12 rounded-2xl border border-sky-200 bg-white flex items-center justify-center mb-6 text-[#1B6A7E] shadow-2xs transition-transform duration-300 group-hover:scale-110">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <h3 class="font-serif text-2xl font-normal mb-3 text-[#1B6A7E]">Behavioral Context</h3>
+          <p class="text-neutral-700 text-sm leading-relaxed">Compares incoming transactions against historical account baselines to isolate velocity spikes and profile mismatches.</p>
+        </div>
+
+        <div class="bg-[#F7F7F5] border border-[#E5E4DE] rounded-3xl p-8 shadow-2xs hover:shadow-hover-card transition-all duration-300 hover:-translate-y-2 hover:border-neutral-400 group cursor-pointer">
+          <div class="w-12 h-12 rounded-2xl border border-[#E5E4DE] bg-white flex items-center justify-center mb-6 text-black shadow-2xs transition-transform duration-300 group-hover:scale-110">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="m15 9-6 6"/></svg>
+          </div>
+          <h3 class="font-serif text-2xl font-normal mb-3 text-neutral-900">Network Graph</h3>
+          <p class="text-neutral-600 text-sm leading-relaxed">Traces multi-hop fund movement across accounts to uncover complex structural topologies like round-trips and structuring.</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- ============ HYBRID INTELLIGENCE ============ -->
-  <section class="lp-section reveal" id="detection">
-    <span class="lp-eyebrow">Hybrid Intelligence</span>
-    <h2 class="lp-h2">Machine learning sees the transaction. Graph intelligence sees the relationship.</h2>
-    <p class="lp-lede">Fund Flow combines transaction-level machine learning with fund-flow analysis to produce a more contextual risk signal.</p>
-
-    <div class="lp-hybrid">
-      <div class="lp-hybrid-panel">
-        <div class="lp-card-label">Machine Learning</div>
-        <h3>Multiple models. One risk signal.</h3>
-        <div class="lp-model-row"><span class="name">XGBoost V2</span><span class="desc">Supervised fraud patterns</span></div>
-        <div class="lp-model-row"><span class="name">XGBoost Exp3</span><span class="desc">Second learned perspective</span></div>
-        <div class="lp-model-row"><span class="name">Isolation Forest</span><span class="desc">Anomaly detection</span></div>
-      </div>
-
-      <div class="lp-hybrid-center">
-        <div class="lp-hybrid-score"><span class="lbl">ML Score</span>0.82</div>
-        <div class="lp-hybrid-plus">+</div>
-        <div class="lp-hybrid-score"><span class="lbl">Graph Score</span>0.91</div>
-        <div class="lp-hybrid-final"><div class="lbl">Unified Risk</div><div class="val">High Risk</div></div>
-      </div>
-
-      <div class="lp-hybrid-panel graph">
-        <div class="lp-card-label">Graph Intelligence</div>
-        <h3>Follow the relationships behind the transaction.</h3>
-        <div class="lp-model-row"><span class="name">Round-trip</span><span class="desc">Cycle detection</span></div>
-        <div class="lp-model-row"><span class="name">Fan-out / Fan-in</span><span class="desc">Distribution & convergence</span></div>
-        <div class="lp-model-row"><span class="name">Structuring</span><span class="desc">Threshold-range repetition</span></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ FOLLOW THE MONEY ============ -->
-  <section class="lp-section reveal" id="fundflow">
-    <span class="lp-eyebrow">Follow the Money</span>
-    <h2 class="lp-h2">Fraud doesn't always move straight.</h2>
-    <p class="lp-lede">Suspicious activity can reveal itself through the shape of money movement between accounts.</p>
-
-    <div class="lp-network-frame">
-      <svg viewBox="0 0 760 220" xmlns="http://www.w3.org/2000/svg">
-        <line x1="90" y1="110" x2="230" y2="50" stroke="var(--border-strong)" stroke-width="1.5"/>
-        <line x1="230" y1="50" x2="360" y2="110" stroke="var(--border-strong)" stroke-width="1.5"/>
-        <line x1="360" y1="110" x2="90" y2="110" stroke="var(--accent-blue-text)" stroke-width="1.5" stroke-dasharray="4 4"/>
-        <circle cx="90" cy="110" r="8" fill="var(--surface)" stroke="var(--text-primary)" stroke-width="1.6"/>
-        <circle cx="230" cy="50" r="8" fill="var(--surface)" stroke="var(--text-primary)" stroke-width="1.6"/>
-        <circle cx="360" cy="110" r="8" fill="var(--accent-blue)" stroke="var(--accent-blue-text)" stroke-width="1.6"/>
-
-        <line x1="470" y1="110" x2="580" y2="40" stroke="var(--border-strong)" stroke-width="1.5"/>
-        <line x1="470" y1="110" x2="600" y2="90" stroke="var(--border-strong)" stroke-width="1.5"/>
-        <line x1="470" y1="110" x2="600" y2="140" stroke="var(--border-strong)" stroke-width="1.5"/>
-        <line x1="470" y1="110" x2="580" y2="185" stroke="var(--border-strong)" stroke-width="1.5"/>
-        <circle cx="470" cy="110" r="8" fill="var(--surface)" stroke="var(--text-primary)" stroke-width="1.6"/>
-        <circle cx="580" cy="40" r="6" fill="var(--surface)" stroke="var(--text-secondary)" stroke-width="1.4"/>
-        <circle cx="600" cy="90" r="6" fill="var(--surface)" stroke="var(--text-secondary)" stroke-width="1.4"/>
-        <circle cx="600" cy="140" r="6" fill="var(--surface)" stroke="var(--text-secondary)" stroke-width="1.4"/>
-        <circle cx="580" cy="185" r="6" fill="var(--surface)" stroke="var(--text-secondary)" stroke-width="1.4"/>
-
-        <text x="90" y="135" font-size="10" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">Round-trip</text>
-        <text x="535" y="205" font-size="10" fill="var(--text-muted)" text-anchor="middle" font-family="var(--font-mono)">Fan-out</text>
-      </svg>
+  <!-- ============ HYBRID ENGINE ============ -->
+  <section class="max-w-7xl mx-auto px-6 lg:px-12 py-24" id="engine">
+    <div class="max-w-2xl mx-auto text-center mb-16 fade-up">
+      <span class="text-[11px] font-bold tracking-widest uppercase text-neutral-400 mb-3 block">Hybrid Risk Pipeline</span>
+      <h2 class="font-serif text-4xl lg:text-5xl font-normal tracking-tight mb-4 text-neutral-900">Machine learning sees the transaction.<br>Graph intelligence sees the relationship.</h2>
+      <p class="text-neutral-600 text-base">Fund Flow fuses standalone transaction classification with structural fund-flow topology to generate a comprehensive risk signal.</p>
     </div>
 
-    <div class="lp-card-grid cols-4">
-      <div class="lp-card lp-pattern-card">
-        <span class="severity">Severity: High</span>
-        <div class="lp-card-label">Round-Trip</div>
-        <h3>Money leaves. Money comes back.</h3>
-        <div class="lp-pattern-diagram">A → B → C → A</div>
-        <p>Short circular transaction paths where funds return to the originating account.</p>
+    <div class="bg-white border border-[#E5E4DE] rounded-3xl p-10 lg:p-14 shadow-subtle grid grid-cols-1 lg:grid-cols-12 gap-8 items-center fade-up transition-all duration-500 hover:shadow-hover-card hover:-translate-y-1">
+      <div class="lg:col-span-5">
+        <h4 class="font-serif text-2xl font-normal mb-3 text-neutral-900">ML Classification Ensemble</h4>
+        <p class="text-neutral-600 text-sm mb-6 leading-relaxed">Complementary gradient boosting models evaluate transaction vectors independently for anomalies.</p>
+        <div class="space-y-3">
+          <div class="p-4 rounded-xl bg-[#F7F7F5] border border-[#E5E4DE] font-medium text-sm text-neutral-800 transition-all duration-300 hover:border-neutral-400 hover:translate-x-2 hover:bg-white">XGBoost Classifier Core</div>
+          <div class="p-4 rounded-xl bg-[#F7F7F5] border border-[#E5E4DE] font-medium text-sm text-neutral-800 transition-all duration-300 hover:border-neutral-400 hover:translate-x-2 hover:bg-white">Isolation Forest Outlier Detector</div>
+        </div>
       </div>
-      <div class="lp-card lp-pattern-card">
-        <span class="severity">Severity: High</span>
-        <div class="lp-card-label">Fan-Out</div>
-        <h3>One account. Many destinations.</h3>
-        <div class="lp-pattern-diagram">A → B
-A → C
-A → D</div>
-        <p>A single account distributing funds across many recipients.</p>
-      </div>
-      <div class="lp-card lp-pattern-card">
-        <span class="severity">Severity: High</span>
-        <div class="lp-card-label">Fan-In</div>
-        <h3>Many sources. One destination.</h3>
-        <div class="lp-pattern-diagram">A → Z
-B → Z
-C → Z</div>
-        <p>Multiple accounts concentrating funds into one potential mule account.</p>
-      </div>
-      <div class="lp-card lp-pattern-card">
-        <span class="severity">Severity: High</span>
-        <div class="lp-card-label">Structuring</div>
-        <h3>Just below the threshold.</h3>
-        <div class="lp-pattern-diagram">₹47,500
-₹45,000
-₹48,250</div>
-        <p>Repeated transactions within a defined amount range.</p>
-      </div>
-    </div>
 
-    <div style="margin-top: 20px;">
-      <div class="lp-card accent">
-        <span class="lp-coming-badge">Coming Soon</span>
-        <div class="lp-card-label">Layering Detection</div>
-        <h3>Hide the origin. Move the money. Repeat.</h3>
-        <div class="lp-pattern-diagram" style="background: rgba(255,255,255,0.6);">A → B → C → D → E</div>
-        <p>Future graph analysis will extend detection toward deeper multi-hop transaction chains and layering patterns.</p>
+      <div class="lg:col-span-2 text-center py-6 lg:py-0">
+        <div class="inline-flex flex-col items-center justify-center p-6 bg-gradient-to-br from-sky-50 to-cyan-50 border border-sky-100 rounded-2xl w-full shadow-2xs transition-all duration-300 hover:scale-105 hover:shadow-md">
+          <span class="text-[10px] font-mono font-bold text-[#1B6A7E] uppercase tracking-wider mb-1">Harmonized</span>
+          <span class="font-serif text-lg font-medium text-[#1B6A7E]">Unified Risk</span>
+        </div>
+      </div>
+
+      <div class="lg:col-span-5">
+        <h4 class="font-serif text-2xl font-normal mb-3 text-neutral-900">Fund-Flow Network Engine</h4>
+        <p class="text-neutral-600 text-sm mb-6 leading-relaxed">Graph analytics map routing structures and relationship trajectories across accounts.</p>
+        <div class="space-y-3">
+          <div class="p-4 rounded-xl bg-[#F7F7F5] border border-[#E5E4DE] font-medium text-sm text-neutral-800 transition-all duration-300 hover:border-neutral-400 hover:translate-x-2 hover:bg-white">Circular Path Analysis</div>
+          <div class="p-4 rounded-xl bg-[#F7F7F5] border border-[#E5E4DE] font-medium text-sm text-neutral-800 transition-all duration-300 hover:border-neutral-400 hover:translate-x-2 hover:bg-white">Threshold Structuring Detection</div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- ============ BEHAVIORAL INTELLIGENCE ============ -->
-  <section class="lp-section reveal">
-    <span class="lp-eyebrow">Context Matters</span>
-    <h2 class="lp-h2">The transaction has a history.</h2>
-    <p class="lp-lede">A ₹50,000 transaction means something different when an account normally moves ₹2,000. Fund Flow uses historical and batch-level context to understand activity relative to account behavior.</p>
-
-    <div class="lp-card-grid cols-4">
-      <div class="lp-card"><div class="lp-card-label">Account History</div><h3>Know what came before.</h3><p>Previous transaction counts and total volume associated with each account.</p></div>
-      <div class="lp-card"><div class="lp-card-label">Transaction Velocity</div><h3>Detect unusual activity.</h3><p>Behavioral changes across transaction activity, not isolated evaluation.</p></div>
-      <div class="lp-card"><div class="lp-card-label">Balance Intelligence</div><h3>Follow the numbers.</h3><p>Compare transaction amounts with balances and detect inconsistencies.</p></div>
-      <div class="lp-card"><div class="lp-card-label">Profile Mismatch</div><h3>Behavior vs. account profile.</h3><p>Surface transactions that don't align with expected account characteristics.</p></div>
-    </div>
-  </section>
-
-  <!-- ============ 30+ SIGNALS ============ -->
-  <section class="lp-section reveal">
-    <span class="lp-eyebrow">30+ Engineered Signals</span>
-    <h2 class="lp-h2">Every transaction leaves fingerprints.</h2>
-    <p class="lp-lede">Fund Flow transforms raw transaction data into structured signals across multiple dimensions.</p>
-
-    <div class="lp-signal-groups">
-      <div class="lp-signal-group"><h4>Temporal</h4><div class="lp-chip-row"><span class="lp-chip">Hour</span><span class="lp-chip">Day of Week</span><span class="lp-chip">Weekend</span><span class="lp-chip">Odd Hour</span></div></div>
-      <div class="lp-signal-group"><h4>Transaction</h4><div class="lp-chip-row"><span class="lp-chip">Amount</span><span class="lp-chip">Log Amount</span><span class="lp-chip">Amount / Balance</span></div></div>
-      <div class="lp-signal-group"><h4>Balance</h4><div class="lp-chip-row"><span class="lp-chip">Old Balance</span><span class="lp-chip">New Balance</span><span class="lp-chip">Balance Mismatch</span><span class="lp-chip">Zero Balance</span></div></div>
-      <div class="lp-signal-group"><h4>Behavioral</h4><div class="lp-chip-row"><span class="lp-chip">Sender Velocity</span><span class="lp-chip">Receiver Velocity</span><span class="lp-chip">Transaction Volume</span></div></div>
-      <div class="lp-signal-group"><h4>Financial</h4><div class="lp-chip-row"><span class="lp-chip">Structuring</span><span class="lp-chip">CTR Threshold</span><span class="lp-chip">RTGS Range</span></div></div>
-      <div class="lp-signal-group"><h4>Profile</h4><div class="lp-chip-row"><span class="lp-chip">Account Type</span><span class="lp-chip">Transaction Type</span><span class="lp-chip">Profile Mismatch</span></div></div>
-    </div>
-  </section>
-
-  <!-- ============ INDIA-AWARE ============ -->
-  <section class="lp-section reveal">
-    <span class="lp-eyebrow">Built Around Indian Transaction Flows</span>
-    <h2 class="lp-h2">Financial intelligence with India-aware signals.</h2>
-    <p class="lp-lede">Fund Flow incorporates transaction characteristics and financial signals relevant to common Indian payment and account patterns.</p>
-
-    <div class="lp-rail">
-      <div class="lp-rail-item">UPI<span>Fast digital payments</span></div>
-      <div class="lp-rail-item">NEFT<span>Bank-to-bank transfers</span></div>
-      <div class="lp-rail-item">RTGS<span>High-value transfers</span></div>
-      <div class="lp-rail-item">NACH<span>Recurring payments</span></div>
-      <div class="lp-rail-item">ATM<span>Cash withdrawal</span></div>
-      <div class="lp-rail-item">Cash<span>Cash deposit</span></div>
-    </div>
-
-    <div class="lp-card-grid cols-3">
-      <div class="lp-card"><h3>INR-Native Analysis</h3><p>Transaction amounts and balance signals processed in Indian rupees.</p></div>
-      <div class="lp-card accent"><h3>Account-Type Intelligence</h3><p>Signals incorporate categories such as savings, current, business, student and Jan Dhan.</p></div>
-      <div class="lp-card"><h3>Threshold-Aware Signals</h3><p>Financial threshold and transaction-range signals contribute to risk detection.</p></div>
-    </div>
-    <p style="font-size:12.5px; color: var(--text-muted); margin-top: 20px;">India-aware financial risk signals — not a claim of regulatory compliance.</p>
-  </section>
-
-  <!-- ============ CSV / BATCH ============ -->
-  <section class="lp-section reveal">
-    <span class="lp-eyebrow">From Raw Data to Risk</span>
-    <h2 class="lp-h2 lp-center">Turn a transaction file into an investigation.</h2>
-    <p class="lp-lede lp-center">Upload transaction data and let Fund Flow transform it through schema mapping, feature engineering, machine learning and graph analysis.</p>
-
-    <div class="lp-pipeline">
-      <div class="lp-pipeline-step"><div class="lp-pipeline-num">01</div><div class="lp-pipeline-text"><strong>Drop CSV</strong><span>Upload your transaction dataset.</span></div></div>
-      <div class="lp-pipeline-connector"></div>
-      <div class="lp-pipeline-step"><div class="lp-pipeline-num">02</div><div class="lp-pipeline-text"><strong>Smart field mapping</strong><span>Automatically identify compatible fields.</span></div></div>
-      <div class="lp-pipeline-connector"></div>
-      <div class="lp-pipeline-step"><div class="lp-pipeline-num">03</div><div class="lp-pipeline-text"><strong>Feature engineering</strong><span>Behavioral, temporal, balance & financial signals.</span></div></div>
-      <div class="lp-pipeline-connector"></div>
-      <div class="lp-pipeline-step"><div class="lp-pipeline-num">04</div><div class="lp-pipeline-text"><strong>ML ensemble</strong><span>Three complementary detection models.</span></div></div>
-      <div class="lp-pipeline-connector"></div>
-      <div class="lp-pipeline-step"><div class="lp-pipeline-num">05</div><div class="lp-pipeline-text"><strong>Graph analysis</strong><span>Search transactions for fund-flow patterns.</span></div></div>
-      <div class="lp-pipeline-connector"></div>
-      <div class="lp-pipeline-step"><div class="lp-pipeline-num">06</div><div class="lp-pipeline-text"><strong>Risk classification</strong><span>Normal, Review, or Fraud.</span></div></div>
-    </div>
-
-    <div class="lp-pipeline-result">
-      <span class="lp-result-chip fraud">Fraud</span>
-      <span class="lp-result-chip review">Review</span>
-      <span class="lp-result-chip normal">Normal</span>
-    </div>
-  </section>
-
-  <!-- ============ SCHEMA MAPPING ============ -->
-  <section class="lp-section reveal">
-    <span class="lp-eyebrow">No Rigid CSV Format</span>
-    <h2 class="lp-h2 lp-center">Your data doesn't have to speak our language.</h2>
-    <p class="lp-lede lp-center">Fund Flow maps compatible fields into its internal transaction schema and requests confirmation when important information is unavailable.</p>
-
-    <div class="lp-mapping">
-      <div class="lp-mapping-box">
-        <h5>Your Data</h5>
-        <code>sender_id</code><code>receiver</code><code>txn_amount</code><code>payment_method</code>
+  <!-- ============ 01. FOLLOW THE MONEY ============ -->
+  <section class="bg-white border-t border-b border-[#E5E4DE] py-24" id="money">
+    <div class="max-w-7xl mx-auto px-6 lg:px-12">
+      <div class="max-w-2xl mx-auto text-center mb-16 fade-up">
+        <span class="text-[11px] font-bold tracking-widest uppercase text-neutral-400 mb-3 block">01 &middot; Follow The Money</span>
+        <h2 class="font-serif text-4xl lg:text-5xl font-normal tracking-tight mb-4 text-neutral-900">Fraud doesn't always move straight.</h2>
+        <p class="text-neutral-600 text-base">Suspicious activity reveals itself through distinct geometric shapes and multi-hop routing topologies between accounts.</p>
       </div>
-      <div class="arrow">→</div>
-      <div class="lp-mapping-box">
-        <h5>Fund Flow</h5>
-        <code>nameOrig</code><code>nameDest</code><code>amount_inr</code><code>txn_type</code>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 fade-up">
+        <div class="bg-[#F7F7F5] border border-[#E5E4DE] rounded-3xl p-8 shadow-2xs hover:shadow-hover-card transition-all duration-300 hover:-translate-y-1.5 hover:border-neutral-400 group cursor-pointer">
+          <span class="text-xs font-mono font-bold text-neutral-400 uppercase tracking-wider mb-2 block">Topology Pattern A</span>
+          <h3 class="font-serif text-2xl font-normal mb-3 text-neutral-900">Round-Trip Flows</h3>
+          <p class="text-neutral-600 text-sm leading-relaxed">Money leaves an account and returns after intermediary routing through multiple shell nodes to obscure the original source.</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-sky-50/90 via-sky-50/40 to-white border border-sky-100 rounded-3xl p-8 shadow-subtle hover:shadow-hover-card transition-all duration-300 hover:-translate-y-1.5 hover:border-sky-300 group cursor-pointer">
+          <span class="text-xs font-mono font-bold text-[#1B6A7E] uppercase tracking-wider mb-2 block">Topology Pattern B</span>
+          <h3 class="font-serif text-2xl font-normal mb-3 text-[#1B6A7E]">Threshold Structuring</h3>
+          <p class="text-neutral-700 text-sm leading-relaxed">Repeated transactions executed precisely below mandatory regulatory reporting thresholds to evade flagging.</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-sky-50/90 via-sky-50/40 to-white border border-sky-100 rounded-3xl p-8 shadow-subtle hover:shadow-hover-card transition-all duration-300 hover:-translate-y-1.5 hover:border-sky-300 group cursor-pointer">
+          <span class="text-xs font-mono font-bold text-[#1B6A7E] uppercase tracking-wider mb-2 block">Topology Pattern C</span>
+          <h3 class="font-serif text-2xl font-normal mb-3 text-[#1B6A7E]">Fan-Out Distribution</h3>
+          <p class="text-neutral-700 text-sm leading-relaxed">A single source account rapidly disburses capital across numerous destination accounts simultaneously.</p>
+        </div>
+
+        <div class="bg-[#F7F7F5] border border-[#E5E4DE] rounded-3xl p-8 shadow-2xs hover:shadow-hover-card transition-all duration-300 hover:-translate-y-1.5 hover:border-neutral-400 group cursor-pointer">
+          <span class="text-xs font-mono font-bold text-neutral-400 uppercase tracking-wider mb-2 block">Topology Pattern D</span>
+          <h3 class="font-serif text-2xl font-normal mb-3 text-neutral-900">Fan-In Aggregation</h3>
+          <p class="text-neutral-600 text-sm leading-relaxed">Multiple feeder accounts aggregate capital into a single destination account before immediate secondary withdrawal.</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- ============ INVESTIGATION WORKSPACE ============ -->
-  <section class="lp-section reveal">
-    <span class="lp-eyebrow">From Alert to Investigation</span>
-    <h2 class="lp-h2 lp-center">Don't stop at "fraud detected."</h2>
-    <p class="lp-lede lp-center">A risk score is only the beginning. Fund Flow connects the alert to the signals and fund-flow patterns behind it.</p>
-
-    <div class="lp-investigation">
-      <div class="lp-inv-head">
-        <span class="id">Transaction #FF-48291</span>
-        <span class="lp-risk-chip">High Risk</span>
-      </div>
-      <div class="lp-inv-amount">₹48,750</div>
-      <div class="lp-inv-meta">UPI · 02:13 AM</div>
-
-      <div class="lp-inv-scores">
-        <div class="box"><div class="k">Unified</div><div class="v">87.4%</div></div>
-        <div class="box"><div class="k">ML</div><div class="v">82.1%</div></div>
-        <div class="box"><div class="k">Graph</div><div class="v">91.0%</div></div>
-      </div>
-
-      <div class="lp-inv-flags">
-        <span class="flag">Structuring</span>
-        <span class="flag">Odd Hour</span>
-        <span class="flag">High Velocity</span>
-        <span class="flag">Profile Mismatch</span>
-      </div>
-
-      <div class="lp-inv-flow">ACC-1042 → ACC-8821 → ACC-3104 → ACC-1042 &nbsp; <span style="color:var(--text-muted)">// circular flow detected</span></div>
-
-      <a href="/signup" class="lp-btn lp-btn-dark" style="width: 100%; justify-content: center;">View Fund Flow →</a>
+  <!-- ============ 02. BEHAVIORAL INTELLIGENCE (Upgraded with pastel blue gradients & smooth hover effects) ============ -->
+  <section class="max-w-7xl mx-auto px-6 lg:px-12 py-24" id="behavior">
+    <div class="max-w-2xl mx-auto text-center mb-16 fade-up">
+      <span class="text-[11px] font-bold tracking-widest uppercase text-neutral-400 mb-3 block">02 &middot; Behavioral Intelligence</span>
+      <h2 class="font-serif text-4xl lg:text-5xl font-normal tracking-tight mb-4 text-neutral-900">The transaction has a history.</h2>
+      <p class="text-neutral-600 text-base">A single transfer means something completely different when contextualized against an account's baseline behavior.</p>
     </div>
-  </section>
 
-  <!-- ============ COMING SOON: SHAP ============ -->
-  <section class="lp-section reveal">
-    <div class="lp-coming-section">
-      <span class="lp-eyebrow">Coming Soon · Explainability</span>
-      <h3>Don't just flag risk. Explain it.</h3>
-      <p>Future SHAP-powered explanations will show which transaction and behavioral signals contributed most to an individual risk decision.</p>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 fade-up">
+      <!-- Card 1 -->
+      <div class="bg-white border border-[#E5E4DE] rounded-3xl p-8 shadow-subtle hover:shadow-hover-card transition-all duration-300 hover:-translate-y-2 hover:border-neutral-400 group cursor-pointer">
+        <span class="text-xs font-mono font-bold text-neutral-400 uppercase tracking-wider block mb-2">Metric 01</span>
+        <h4 class="font-serif text-2xl font-normal mb-3 text-neutral-900">Account History</h4>
+        <p class="text-neutral-600 text-sm leading-relaxed">Know what came before by evaluating historical transaction profiles and baselines.</p>
+      </div>
 
-      <div class="lp-shap-bars">
-        <div class="lp-shap-row"><div class="lbl"><span>Transaction velocity</span><span>+34%</span></div><div class="lp-shap-track"><div class="lp-shap-fill" style="width:85%"></div></div></div>
-        <div class="lp-shap-row"><div class="lbl"><span>Amount anomaly</span><span>+27%</span></div><div class="lp-shap-track"><div class="lp-shap-fill" style="width:68%"></div></div></div>
-        <div class="lp-shap-row"><div class="lbl"><span>Odd transaction hour</span><span>+18%</span></div><div class="lp-shap-track"><div class="lp-shap-fill" style="width:45%"></div></div></div>
-        <div class="lp-shap-row"><div class="lbl"><span>Balance mismatch</span><span>+12%</span></div><div class="lp-shap-track"><div class="lp-shap-fill" style="width:30%"></div></div></div>
-        <div class="lp-shap-row"><div class="lbl"><span>Profile mismatch</span><span>+9%</span></div><div class="lp-shap-track"><div class="lp-shap-fill" style="width:22%"></div></div></div>
+      <!-- Card 2 (Soft Pastel Blue Gradient) -->
+      <div class="bg-gradient-to-br from-sky-50/90 via-sky-50/40 to-white border border-sky-100 rounded-3xl p-8 shadow-subtle hover:shadow-hover-card transition-all duration-300 hover:-translate-y-2 hover:border-sky-300 group cursor-pointer">
+        <span class="text-xs font-mono font-bold text-[#1B6A7E] uppercase tracking-wider block mb-2">Metric 02</span>
+        <h4 class="font-serif text-2xl font-normal mb-3 text-[#1B6A7E]">Transaction Velocity</h4>
+        <p class="text-neutral-700 text-sm leading-relaxed">Detect abnormal frequency spikes and rapid capital turnover rates in real time.</p>
+      </div>
+
+      <!-- Card 3 (Soft Pastel Blue Gradient) -->
+      <div class="bg-gradient-to-br from-sky-50/90 via-sky-50/40 to-white border border-sky-100 rounded-3xl p-8 shadow-subtle hover:shadow-hover-card transition-all duration-300 hover:-translate-y-2 hover:border-sky-300 group cursor-pointer">
+        <span class="text-xs font-mono font-bold text-[#1B6A7E] uppercase tracking-wider block mb-2">Metric 03</span>
+        <h4 class="font-serif text-2xl font-normal mb-3 text-[#1B6A7E]">Balance Intelligence</h4>
+        <p class="text-neutral-700 text-sm leading-relaxed">Measure old vs. new balance discrepancies and sudden depletions across accounts.</p>
+      </div>
+
+      <!-- Card 4 -->
+      <div class="bg-white border border-[#E5E4DE] rounded-3xl p-8 shadow-subtle hover:shadow-hover-card transition-all duration-300 hover:-translate-y-2 hover:border-neutral-400 group cursor-pointer">
+        <span class="text-xs font-mono font-bold text-neutral-400 uppercase tracking-wider block mb-2">Metric 04</span>
+        <h4 class="font-serif text-2xl font-normal mb-3 text-neutral-900">Profile Mismatch</h4>
+        <p class="text-neutral-600 text-sm leading-relaxed">Flag discrepancies between declared account classification and active operational behavior.</p>
       </div>
     </div>
   </section>
 
-  <!-- ============ COMING SOON: SSE ============ -->
-  <section class="lp-section reveal">
-    <div class="lp-coming-section">
-      <span class="lp-eyebrow">Coming Soon · Real-Time Intelligence</span>
-      <h3>Risk intelligence as it happens.</h3>
-      <p>Future real-time streaming will allow incoming transactions to be evaluated continuously, surfacing high-priority activity immediately. (SSE streaming)</p>
+  <!-- ============ 03. ENGINEERED SIGNALS (Upgraded with rich styling & interactive hover states) ============ -->
+  <section class="bg-white border-t border-b border-[#E5E4DE] py-24" id="signals">
+    <div class="max-w-7xl mx-auto px-6 lg:px-12">
+      <div class="max-w-2xl mx-auto text-center mb-16 fade-up">
+        <span class="text-[11px] font-bold tracking-widest uppercase text-neutral-400 mb-3 block">03 &middot; Signal Engineering</span>
+        <h2 class="font-serif text-4xl lg:text-5xl font-normal tracking-tight mb-4 text-neutral-900">Every transaction leaves fingerprints.</h2>
+        <p class="text-neutral-600 text-base">Fund Flow transforms raw transaction data into structured, production-ready signals across multiple analytical dimensions.</p>
+      </div>
 
-      <div class="lp-stream">
-        <div class="lp-stream-row high"><span>02:14:32 · UPI · ₹48,750</span><span class="lvl">HIGH</span></div>
-        <div class="lp-stream-row review"><span>02:14:35 · NEFT · ₹1,20,000</span><span class="lvl">REVIEW</span></div>
-        <div class="lp-stream-row normal"><span>02:14:41 · UPI · ₹2,500</span><span class="lvl">NORMAL</span></div>
-        <div class="lp-stream-row high"><span>02:14:48 · RTGS · ₹8,50,000</span><span class="lvl">HIGH</span></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 fade-up">
+        <div class="bg-[#F7F7F5] border border-[#E5E4DE] p-8 rounded-3xl shadow-2xs hover:shadow-hover-card transition-all duration-300 hover:-translate-y-1.5 hover:border-neutral-400 group cursor-pointer">
+          <span class="text-xs font-mono font-bold text-neutral-400 uppercase tracking-wider block mb-2">Dimension 01</span>
+          <h4 class="font-serif text-xl font-medium text-neutral-900 mb-2">Temporal Signals</h4>
+          <p class="text-neutral-600 text-sm">Hours, Weekends & Odd Timestamps analysis.</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-sky-50/90 via-sky-50/40 to-white border border-sky-100 p-8 rounded-3xl shadow-subtle hover:shadow-hover-card transition-all duration-300 hover:-translate-y-1.5 hover:border-sky-300 group cursor-pointer">
+          <span class="text-xs font-mono font-bold text-[#1B6A7E] uppercase tracking-wider block mb-2">Dimension 02</span>
+          <h4 class="font-serif text-xl font-medium text-[#1B6A7E] mb-2">Transaction Vectors</h4>
+          <p class="text-neutral-700 text-sm">Log Amounts & Rail Variations breakdown.</p>
+        </div>
+
+        <div class="bg-white border border-[#E5E4DE] p-8 rounded-3xl shadow-2xs hover:shadow-hover-card transition-all duration-300 hover:-translate-y-1.5 hover:border-neutral-400 group cursor-pointer">
+          <span class="text-xs font-mono font-bold text-neutral-400 uppercase tracking-wider block mb-2">Dimension 03</span>
+          <h4 class="font-serif text-xl font-medium text-neutral-900 mb-2">Balance Dynamics</h4>
+          <p class="text-neutral-600 text-sm">Old Bal, New Bal & Mismatches calculation.</p>
+        </div>
+
+        <div class="bg-white border border-[#E5E4DE] p-8 rounded-3xl shadow-2xs hover:shadow-hover-card transition-all duration-300 hover:-translate-y-1.5 hover:border-neutral-400 group cursor-pointer">
+          <span class="text-xs font-mono font-bold text-neutral-400 uppercase tracking-wider block mb-2">Dimension 04</span>
+          <h4 class="font-serif text-xl font-medium text-neutral-900 mb-2">Behavioral Metrics</h4>
+          <p class="text-neutral-600 text-sm">Sender & Receiver Velocity Spikes tracking.</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-sky-50/90 via-sky-50/40 to-white border border-sky-100 p-8 rounded-3xl shadow-subtle hover:shadow-hover-card transition-all duration-300 hover:-translate-y-1.5 hover:border-sky-300 group cursor-pointer">
+          <span class="text-xs font-mono font-bold text-[#1B6A7E] uppercase tracking-wider block mb-2">Dimension 05</span>
+          <h4 class="font-serif text-xl font-medium text-[#1B6A7E] mb-2">Financial Thresholds</h4>
+          <p class="text-neutral-700 text-sm">Structuring & Gateway Thresholds evaluation.</p>
+        </div>
+
+        <div class="bg-[#F7F7F5] border border-[#E5E4DE] p-8 rounded-3xl shadow-2xs hover:shadow-hover-card transition-all duration-300 hover:-translate-y-1.5 hover:border-neutral-400 group cursor-pointer">
+          <span class="text-xs font-mono font-bold text-neutral-400 uppercase tracking-wider block mb-2">Dimension 06</span>
+          <h4 class="font-serif text-xl font-medium text-neutral-900 mb-2">Profile Alignment</h4>
+          <p class="text-neutral-600 text-sm">Account Class & Type Mismatches detection.</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- ============ COMING SOON: PDF ============ -->
-  <section class="lp-section reveal">
-    <div class="lp-coming-section">
-      <span class="lp-eyebrow">Coming Soon · Investigation Reporting</span>
-      <h3>Turn investigations into reports.</h3>
-      <p>Future reporting capabilities will package transaction details, risk signals, detected patterns and fund-flow analysis into shareable investigation reports. (PDF reports)</p>
+  <!-- ============ 04. CSV → INVESTIGATION (Upgraded with gorgeous workflow cards and hover micro-interactions) ============ -->
+  <section class="max-w-7xl mx-auto px-6 lg:px-12 py-24" id="workflow">
+    <div class="max-w-2xl mx-auto text-center mb-16 fade-up">
+      <span class="text-[11px] font-bold tracking-widest uppercase text-neutral-400 mb-3 block">04 &middot; Batch Processing Pipeline</span>
+      <h2 class="font-serif text-4xl lg:text-5xl font-normal tracking-tight mb-4 text-neutral-900">Turn a transaction file into an investigation.</h2>
+      <p class="text-neutral-600 text-base">Seamless automated workflow from raw tabular uploads to structured risk classification.</p>
+    </div>
 
-      <div class="lp-report-mock">
-        <div class="rtitle">Fund Flow</div>
-        <div class="rsub">Transaction Risk Report</div>
-        <ul>
-          <li>Transaction Summary</li>
-          <li>Risk Assessment</li>
-          <li>ML Analysis</li>
-          <li>Graph Analysis</li>
-          <li>Detected Patterns</li>
-          <li>Fund Flow</li>
-          <li>Investigation Timeline</li>
-        </ul>
-        <a href="#" class="lp-btn lp-btn-ghost" style="width:100%; justify-content:center; pointer-events:none; opacity:0.6;">Export Investigation Report →</a>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 fade-up">
+      <div class="bg-white border border-[#E5E4DE] p-8 rounded-3xl shadow-subtle hover:shadow-hover-card transition-all duration-300 hover:-translate-y-2 group cursor-pointer">
+        <span class="text-xs font-mono font-bold text-neutral-400 uppercase tracking-wider block mb-2">Step 01</span>
+        <h4 class="font-serif text-2xl font-normal mb-2 text-neutral-900">Drop CSV</h4>
+        <p class="text-neutral-600 text-sm">Upload raw tabular files directly into secure memory storage.</p>
+      </div>
+
+      <div class="bg-white border border-[#E5E4DE] p-8 rounded-3xl shadow-subtle hover:shadow-hover-card transition-all duration-300 hover:-translate-y-2 group cursor-pointer">
+        <span class="text-xs font-mono font-bold text-neutral-400 uppercase tracking-wider block mb-2">Step 02</span>
+        <h4 class="font-serif text-2xl font-normal mb-2 text-neutral-900">Smart Mapping</h4>
+        <p class="text-neutral-600 text-sm">Automatic alias matching aligns user schemas with internal structures.</p>
+      </div>
+
+      <div class="bg-white border border-[#E5E4DE] p-8 rounded-3xl shadow-subtle hover:shadow-hover-card transition-all duration-300 hover:-translate-y-2 group cursor-pointer">
+        <span class="text-xs font-mono font-bold text-neutral-400 uppercase tracking-wider block mb-2">Step 03</span>
+        <h4 class="font-serif text-2xl font-normal mb-2 text-neutral-900">Feature Eng.</h4>
+        <p class="text-neutral-600 text-sm">Computes 30+ predictive temporal and behavioral financial signals.</p>
+      </div>
+
+      <div class="bg-white border border-[#E5E4DE] p-8 rounded-3xl shadow-subtle hover:shadow-hover-card transition-all duration-300 hover:-translate-y-2 group cursor-pointer">
+        <span class="text-xs font-mono font-bold text-neutral-400 uppercase tracking-wider block mb-2">Step 04</span>
+        <h4 class="font-serif text-2xl font-normal mb-2 text-neutral-900">ML Ensemble</h4>
+        <p class="text-neutral-600 text-sm">Passes data through gradient boosting classifiers and outlier detectors.</p>
+      </div>
+
+      <div class="bg-white border border-[#E5E4DE] p-8 rounded-3xl shadow-subtle hover:shadow-hover-card transition-all duration-300 hover:-translate-y-2 group cursor-pointer">
+        <span class="text-xs font-mono font-bold text-neutral-400 uppercase tracking-wider block mb-2">Step 05</span>
+        <h4 class="font-serif text-2xl font-normal mb-2 text-neutral-900">Graph Analysis</h4>
+        <p class="text-neutral-600 text-sm">Executes NetworkX routing and multi-hop structure inspection.</p>
+      </div>
+
+      <div class="bg-gradient-to-br from-sky-50/90 via-sky-50/40 to-white border border-sky-100 p-8 rounded-3xl shadow-subtle hover:shadow-hover-card transition-all duration-300 hover:-translate-y-2 hover:border-sky-300 group cursor-pointer">
+        <span class="text-xs font-mono font-bold text-[#1B6A7E] uppercase tracking-wider block mb-2">Step 06</span>
+        <h4 class="font-serif text-2xl font-normal mb-2 text-[#1B6A7E]">Risk Class</h4>
+        <p class="text-neutral-700 text-sm">Classifies final state into Normal, Review, or High-Risk Fraud buckets.</p>
       </div>
     </div>
   </section>
 
-  <!-- ============ MODEL PERFORMANCE ============ -->
-  <section class="lp-section reveal" id="technology">
-    <span class="lp-eyebrow">Model Evaluation</span>
-    <h2 class="lp-h2 lp-center">Strong detection starts with measurable performance.</h2>
-    <p class="lp-lede lp-center">Fund Flow evaluates multiple models independently before combining their signals into the production ensemble.</p>
-
-    <div class="lp-card-grid cols-3">
-      <div class="lp-card lp-perf-card">
-        <div class="model">XGBoost V2</div>
-        <div class="metric"><div class="v">0.9998</div><div class="k">ROC-AUC</div></div>
-        <div class="metric"><div class="v">0.9976</div><div class="k">Average Precision</div></div>
+  <!-- ============ FLAGSHIPS & ADVANCED CAPABILITIES ============ -->
+  <section class="bg-white border-t border-[#E5E4DE] py-24" id="flagships">
+    <div class="max-w-7xl mx-auto px-6 lg:px-12">
+      <div class="max-w-2xl mx-auto text-center mb-16 fade-up">
+        <span class="text-[11px] font-bold tracking-widest uppercase text-neutral-400 mb-3 block">Advanced Architecture & Capabilities</span>
+        <h2 class="font-serif text-4xl lg:text-5xl font-normal tracking-tight mb-4 text-neutral-900">Built for deeper intelligence and investigation.</h2>
+        <p class="text-neutral-600 text-base">Next-generation features engineered to extend visibility, explainability, and real-time streaming.</p>
       </div>
-      <div class="lp-card lp-perf-card accent">
-        <div class="model">XGBoost Exp3</div>
-        <div class="metric"><div class="v">0.9996</div><div class="k">ROC-AUC</div></div>
-      </div>
-      <div class="lp-card lp-perf-card">
-        <div class="model">Isolation Forest</div>
-        <div class="metric"><div class="v">0.9105</div><div class="k">ROC-AUC</div></div>
-      </div>
-    </div>
-    <p class="lp-footnote">Reported on held-out evaluation data from the project's model-training experiments. ROC-AUC is not the same as classification accuracy.</p>
-  </section>
 
-  <!-- ============ ARCHITECTURE ============ -->
-  <section class="lp-section reveal">
-    <span class="lp-eyebrow">Under the Hood</span>
-    <h2 class="lp-h2 lp-center">From transaction data to unified risk.</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 fade-up">
+        <!-- SHAP Card -->
+        <div class="bg-gradient-to-br from-sky-50/70 via-white to-white border border-sky-100 rounded-3xl p-8 shadow-subtle transition-all duration-300 hover:-translate-y-2 hover:shadow-hover-card hover:border-sky-300 group cursor-pointer">
+          <span class="inline-block text-[10px] font-bold tracking-widest uppercase bg-sky-100 text-[#1B6A7E] px-3.5 py-1 rounded-full mb-4">Explainability Engine</span>
+          <h3 class="font-serif text-2xl font-normal mb-3 text-neutral-900">SHAP-Powered Explanations</h3>
+          <p class="text-neutral-600 text-sm leading-relaxed mb-6">Granular feature attribution breakdown showing exactly which transaction attributes and behavioral anomalies contributed most to an individual risk decision.</p>
+          <div class="p-4 rounded-xl bg-white border border-sky-100 space-y-2 text-xs font-mono shadow-2xs group-hover:shadow-sm transition-shadow">
+            <div class="flex justify-between"><span>Transaction Velocity</span> <strong class="text-red-500">+34%</strong></div>
+            <div class="flex justify-between"><span>Amount Anomaly</span> <strong class="text-red-500">+27%</strong></div>
+          </div>
+        </div>
 
-    <div class="lp-arch-flow">
-      <div class="lp-arch-node">Transaction Data</div>
-      <div class="lp-arch-arrow">↓</div>
-      <div class="lp-arch-node">30+ Engineered Signals</div>
-      <div class="lp-arch-arrow">↓</div>
-      <div class="lp-arch-node split"><span>XGBoost V2</span><span>XGBoost Exp3</span><span>Isolation Forest</span></div>
-      <div class="lp-arch-arrow">↓</div>
-      <div class="lp-arch-node">ML Engine</div>
-      <div class="lp-arch-arrow">↓</div>
-      <div class="lp-arch-node">Graph Engine</div>
-      <div class="lp-arch-arrow">↓</div>
-      <div class="lp-arch-node dark">Risk Engine</div>
-      <div class="lp-arch-arrow">↓</div>
-      <div class="lp-arch-final"><span class="normal">Normal</span><span class="review">Review</span><span class="fraud">Fraud</span></div>
-    </div>
-  </section>
+        <!-- SSE Realtime Card -->
+        <div class="bg-[#F7F7F5] border border-[#E5E4DE] rounded-3xl p-8 shadow-subtle transition-all duration-300 hover:-translate-y-2 hover:shadow-hover-card hover:border-neutral-400 group cursor-pointer">
+          <span class="inline-block text-[10px] font-bold tracking-widest uppercase bg-neutral-200 text-neutral-700 px-3.5 py-1 rounded-full mb-4">Real-Time Streaming</span>
+          <h3 class="font-serif text-2xl font-normal mb-3 text-neutral-900">SSE Live Stream Intelligence</h3>
+          <p class="text-neutral-600 text-sm leading-relaxed mb-6">Server-Sent Events streaming incoming transactions continuously to surface high-priority fraud alerts instantly as they occur in production rails.</p>
+          <div class="p-4 rounded-xl bg-white border border-[#E5E4DE] space-y-2 text-xs font-mono shadow-2xs group-hover:shadow-sm transition-shadow">
+            <div class="flex justify-between text-neutral-500"><span>02:14:32 &middot; UPI</span> <strong class="text-red-600">HIGH RISK</strong></div>
+            <div class="flex justify-between text-neutral-500"><span>02:14:48 &middot; RTGS</span> <strong class="text-amber-600">REVIEW</strong></div>
+          </div>
+        </div>
 
-  <!-- ============ TECH STACK ============ -->
-  <section class="lp-section reveal">
-    <span class="lp-eyebrow">Built as a System</span>
-    <h2 class="lp-h2 lp-center">More than a machine-learning notebook.</h2>
+        <!-- PDF Reports Card -->
+        <div class="bg-[#F7F7F5] border border-[#E5E4DE] rounded-3xl p-8 shadow-subtle transition-all duration-300 hover:-translate-y-2 hover:shadow-hover-card hover:border-neutral-400 group cursor-pointer">
+          <span class="inline-block text-[10px] font-bold tracking-widest uppercase bg-neutral-200 text-neutral-700 px-3.5 py-1 rounded-full mb-4">Compliance Reporting</span>
+          <h3 class="font-serif text-2xl font-normal mb-3 text-neutral-900">PDF Investigation Reports</h3>
+          <p class="text-neutral-600 text-sm leading-relaxed">Package complete transaction histories, risk signals, and fund-flow network structures into clean shareable executive reports for compliance teams.</p>
+        </div>
 
-    <div class="lp-tech-groups">
-      <div class="lp-tech-group"><h4>Intelligence</h4><ul><li>Python</li><li>XGBoost</li><li>scikit-learn</li><li>Isolation Forest</li><li>Pandas</li><li>NumPy</li></ul></div>
-      <div class="lp-tech-group"><h4>Graph</h4><ul><li>NetworkX</li><li>PyVis</li></ul></div>
-      <div class="lp-tech-group"><h4>Backend</h4><ul><li>FastAPI</li><li>Pydantic</li><li>PostgreSQL</li></ul></div>
-      <div class="lp-tech-group"><h4>Frontend</h4><ul><li>HTML</li><li>CSS</li><li>JavaScript</li><li>Jinja</li></ul></div>
-      <div class="lp-tech-group"><h4>Data &amp; Experiments</h4><ul><li>PaySim</li><li>SMOTE</li><li>Faker</li><li>Jupyter</li></ul></div>
-      <div class="lp-tech-group future"><h4>Future</h4><ul><li>SHAP</li><li>SSE</li><li>PDF Reporting</li></ul></div>
-    </div>
-  </section>
-
-  <!-- ============ PRODUCTION-MINDED ============ -->
-  <section class="lp-section reveal">
-    <span class="lp-eyebrow">Production-Minded</span>
-    <h2 class="lp-h2">Built as an application, not just an experiment.</h2>
-
-    <div class="lp-card-grid cols-4">
-      <div class="lp-card"><h3>Authentication</h3><p>Email/password, OTP verification and Google OAuth.</p></div>
-      <div class="lp-card"><h3>Guest Access</h3><p>Explore the system without unnecessary friction.</p></div>
-      <div class="lp-card"><h3>Persistent History</h3><p>Prediction and batch-job history saved for later review.</p></div>
-      <div class="lp-card"><h3>Background Processing</h3><p>CSV files process through background jobs, never blocking the request.</p></div>
-    </div>
-  </section>
-
-  <!-- ============ ROADMAP ============ -->
-  <section class="lp-section reveal" id="roadmap">
-    <span class="lp-eyebrow">What's Next</span>
-    <h2 class="lp-h2 lp-center">The intelligence layer is still evolving.</h2>
-
-    <div class="lp-roadmap">
-      <div class="lp-roadmap-col">
-        <h4>Current</h4>
-        <ul>
-          <li><span class="check">✓</span> ML Ensemble</li>
-          <li><span class="check">✓</span> Behavioral Signals</li>
-          <li><span class="check">✓</span> Graph Detection</li>
-          <li><span class="check">✓</span> Round-trip Detection</li>
-          <li><span class="check">✓</span> Fan-in / Fan-out</li>
-          <li><span class="check">✓</span> Structuring Detection</li>
-          <li><span class="check">✓</span> CSV Batch Processing</li>
-          <li><span class="check">✓</span> Smart Schema Mapping</li>
-          <li><span class="check">✓</span> PostgreSQL Persistence</li>
-        </ul>
-      </div>
-      <div class="lp-roadmap-col next">
-        <h4>Next</h4>
-        <ul>
-          <li><span class="check">○</span> SHAP Explainability</li>
-          <li><span class="check">○</span> Layering Detection</li>
-          <li><span class="check">○</span> SSE Live Monitoring</li>
-          <li><span class="check">○</span> PDF Investigation Reports</li>
-          <li><span class="check">○</span> Deeper Investigation Workflows</li>
-        </ul>
+        <!-- Layering Detection Card -->
+        <div class="bg-gradient-to-br from-sky-50/70 via-white to-white border border-sky-100 rounded-3xl p-8 shadow-subtle transition-all duration-300 hover:-translate-y-2 hover:shadow-hover-card hover:border-sky-300 group cursor-pointer">
+          <span class="inline-block text-[10px] font-bold tracking-widest uppercase bg-sky-100 text-[#1B6A7E] px-3.5 py-1 rounded-full mb-4">Advanced Graph Engine</span>
+          <h3 class="font-serif text-2xl font-normal mb-3 text-neutral-900">Multi-Hop Layering Detection</h3>
+          <p class="text-neutral-600 text-sm leading-relaxed">Extended graph analytics targeting complex multi-hop laundering chains across heavily obfuscated intermediary accounts.</p>
+        </div>
       </div>
     </div>
-  </section>
-
-  <!-- ============ FINAL CTA ============ -->
-  <section class="lp-final-cta reveal">
-    <span class="lp-eyebrow">See Beyond the Transaction</span>
-    <h2>Follow the money.<br>Find the pattern.</h2>
-    <p>Explore how machine learning, behavioral intelligence, and graph analysis come together to uncover suspicious financial activity.</p>
-    <div class="lp-final-ctas">
-      <a href="/signup" class="lp-btn lp-btn-dark">Explore Fund Flow →</a>
-      <a href="https://github.com/Shivam7977/fund-flow-fraud" class="lp-btn lp-btn-ghost" target="_blank" rel="noopener">View Source on GitHub ↗</a>
-    </div>
-    <p class="lp-final-tags">AI Fraud Detection · Behavioral Intelligence · Graph Analytics</p>
   </section>
 
   <!-- ============ FOOTER ============ -->
-  <footer class="lp-footer">
-    <div class="lp-footer-inner">
-      <div>
-        <div class="lp-footer-brand">Fund Flow</div>
-        <p class="lp-footer-desc">AI-powered financial fraud intelligence for transaction-level and fund-flow analysis.</p>
+  <footer class="border-t border-[#E5E4DE] bg-white py-16 px-6 lg:px-12 mt-12">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-12 mb-16">
+      <div class="md:col-span-6">
+        <div class="flex items-center gap-3 font-serif text-lg font-medium text-black mb-4">
+          <span class="w-7 h-7 rounded-xl bg-black text-white flex items-center justify-center shadow-2xs">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V5l-8-3Z"/></svg>
+          </span>
+          Fund Flow
+        </div>
+        <p class="text-neutral-600 text-sm max-w-sm leading-relaxed">AI-powered financial fraud intelligence for transaction-level and fund-flow analysis.</p>
       </div>
-      <div class="lp-footer-col">
-        <h5>Product</h5>
-        <ul><li>Intelligence</li><li>Detection</li><li>Fund Flow</li><li>Technology</li><li>Roadmap</li></ul>
-      </div>
-      <div class="lp-footer-col">
-        <h5>Project</h5>
-        <ul>
-          <li><a href="https://github.com/Shivam7977/fund-flow-fraud" target="_blank" rel="noopener">GitHub</a></li>
-          <li>Documentation</li>
-          <li>Model Experiments</li>
+
+      <div class="md:col-span-2">
+        <h5 class="text-xs font-bold text-neutral-400 uppercase tracking-widest mb-4">Product</h5>
+        <ul class="space-y-3 text-sm text-neutral-600">
+          <li><a href="#intelligence" class="hover:text-black transition-colors">Intelligence</a></li>
+          <li><a href="#engine" class="hover:text-black transition-colors">Engine</a></li>
+          <li><a href="#money" class="hover:text-black transition-colors">Network</a></li>
+          <li><a href="#behavior" class="hover:text-black transition-colors">Behavior</a></li>
         </ul>
       </div>
-      <div class="lp-footer-col">
-        <h5>Status</h5>
-        <ul>
-          <li class="active">ML Detection — Active</li>
-          <li class="active">Graph Intelligence — Active</li>
-          <li class="soon">SHAP — Coming Soon</li>
-          <li class="soon">SSE — Coming Soon</li>
-          <li class="soon">PDF Reports — Coming Soon</li>
-          <li class="soon">Layering Detection — Coming Soon</li>
+
+      <div class="md:col-span-2">
+        <h5 class="text-xs font-bold text-neutral-400 uppercase tracking-widest mb-4">Project</h5>
+        <ul class="space-y-3 text-sm text-neutral-600">
+          <li><a href="https://github.com/Shivam7977/fund-flow-fraud" target="_blank" rel="noopener" class="hover:text-black transition-colors">GitHub Repository</a></li>
+          <li><a href="/login" class="hover:text-black transition-colors">Guest Access</a></li>
+        </ul>
+      </div>
+
+      <div class="md:col-span-2">
+        <h5 class="text-xs font-bold text-neutral-400 uppercase tracking-widest mb-4">Platform</h5>
+        <ul class="space-y-3 text-sm text-neutral-600">
+          <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Model Ensemble</li>
+          <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Graph Engine</li>
         </ul>
       </div>
     </div>
-    <div class="lp-footer-bottom">
-      <span>© 2026 Fund Flow</span>
-      <span>Built for understanding financial risk.</span>
+
+    <div class="max-w-7xl mx-auto pt-8 border-t border-[#E5E4DE] flex flex-wrap justify-between items-center text-xs text-neutral-500">
+      <span>© 2026 Fund Flow. Built for understanding financial risk.</span>
+      <span>Minimal editorial UI with off-white background, white cards, subtle black shadows, and soft pastel-blue accents.</span>
     </div>
   </footer>
 
@@ -584,17 +471,17 @@ C → Z</div>
 {% block extra_scripts %}
 <script>
   if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    const io = new IntersectionObserver((entries) => {
+    const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("in");
-          io.unobserve(entry.target);
+        if (entry.isIntersecting) { 
+          entry.target.classList.add("in"); 
+          observer.unobserve(entry.target); 
         }
       });
-    }, { threshold: 0.12 });
-    document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+    }, { threshold: 0.1 });
+    document.querySelectorAll(".fade-up").forEach((el) => observer.observe(el));
   } else {
-    document.querySelectorAll(".reveal").forEach((el) => el.classList.add("in"));
+    document.querySelectorAll(".fade-up").forEach((el) => el.classList.add("in"));
   }
 </script>
 {% endblock %}

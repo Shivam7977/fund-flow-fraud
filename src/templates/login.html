@@ -2,66 +2,161 @@
 {% block title %}Log in — Fund Flow{% endblock %}
 {% block navbar %}{% endblock %}
 
+{% block extra_head %}
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          brand: {
+            bg: '#F7F7F5',
+            surface: '#FFFFFF',
+            muted: '#F1F0EC',
+            border: '#E5E4DE',
+            dark: '#0A0A0A',
+            accent: '#DCEFF3',
+            'accent-text': '#1B6A7E',
+          }
+        },
+        fontFamily: {
+          serif: ['"Source Serif 4"', 'Georgia', 'serif'],
+          sans: ['Inter', 'sans-serif'],
+          mono: ['"SF Mono"', 'Consolas', 'monospace']
+        },
+        boxShadow: {
+          'premium': '0 25px 60px -15px rgba(0, 0, 0, 0.08)',
+          'subtle': '0 4px 20px -2px rgba(0, 0, 0, 0.04)',
+          'hover-card': '0 20px 40px -10px rgba(0, 0, 0, 0.08)',
+        }
+      }
+    }
+  }
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@400;500;600&display=swap');
+  .fade-up { opacity: 0; transform: translateY(16px); transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+  .fade-up.in { opacity: 1; transform: none; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="auth-shell">
+<div class="min-h-screen grid grid-cols-1 lg:grid-cols-12 bg-[#F7F7F5] text-[#111111] font-sans selection:bg-neutral-900 selection:text-white">
 
-  <div class="auth-top-link">
-    Don't have an account? <a href="/signup">Sign up</a>
-  </div>
+  <!-- LEFT SIDE: Editorial Pastel-Blue & White Branding Panel -->
+  <div class="lg:col-span-5 bg-gradient-to-br from-sky-50/80 via-[#F7F7F5] to-white p-10 lg:p-16 flex flex-col justify-between relative overflow-hidden border-r border-[#E5E4DE]">
+    <div class="absolute -top-32 -left-32 w-96 h-96 bg-sky-200/30 rounded-full blur-3xl pointer-events-none"></div>
 
-  <div class="auth-right-inner">
-    <div class="mobile-brand">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V5l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>
-      Fund Flow
+    <div>
+      <a href="/" class="inline-flex items-center gap-3 font-serif text-xl tracking-tight text-neutral-900 mb-16 group">
+        <span class="w-8 h-8 rounded-xl bg-black text-white flex items-center justify-center transition-transform group-hover:scale-105 shadow-subtle">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V5l-8-3Z"/></svg>
+        </span>
+        Fund Flow
+      </a>
+      <span class="text-[11px] font-bold tracking-widest uppercase text-neutral-400 mb-4 block">FRAUD INTELLIGENCE &middot; 2026</span>
+      <h2 class="font-serif text-4xl lg:text-5xl font-normal leading-[1.12] tracking-tight mb-6 text-neutral-900">
+        Trace the money.<br>Uncover the risk.<br>Secure the rails.
+      </h2>
+      <p class="text-neutral-600 text-sm leading-relaxed max-w-sm">
+        Log back in to continue running machine learning anomaly detection and multi-hop fund flow graph analysis across your transaction ecosystem.
+      </p>
     </div>
 
-    <div class="auth-card">
-      <span class="eyebrow-badge">Welcome back</span>
-      <h1>Log in to Fund Flow</h1>
-      <p>Access your fraud detection dashboard.</p>
+    <div class="grid grid-cols-3 gap-6 pt-12 border-t border-[#E5E4DE] text-xs">
+      <div>
+        <span class="text-neutral-400 uppercase block mb-1">Engine</span>
+        <strong class="text-neutral-800 font-serif text-sm">XGBoost + Graph</strong>
+      </div>
+      <div>
+        <span class="text-neutral-400 uppercase block mb-1">Signals</span>
+        <strong class="text-neutral-800 font-serif text-sm">30+ Engineered</strong>
+      </div>
+      <div>
+        <span class="text-neutral-400 uppercase block mb-1">Processing</span>
+        <strong class="text-neutral-800 font-serif text-sm">Async &amp; Live</strong>
+      </div>
+    </div>
+  </div>
 
-      <div class="social-buttons">
-        <a href="/auth/google/login" class="btn btn-secondary">
-          <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l5.7-5.7C34.6 6.5 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5Z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l5.7-5.7C34.6 6.5 29.6 4 24 4 16.3 4 9.7 8.3 6.3 14.7Z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.4-2.1 14.1-5.6l-6.5-5.5C29.5 34.7 26.9 36 24 36c-5.2 0-9.6-3.1-11.3-7.5l-6.5 5C9.6 39.6 16.3 44 24 44Z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.2 5.6l6.5 5.5C41.3 36 44 30.5 44 24c0-1.3-.1-2.7-.4-3.5Z"/></svg>
-          Continue with Google
+  <!-- RIGHT SIDE: Clean White Interactive Login Card -->
+  <div class="lg:col-span-7 bg-[#F7F7F5] p-6 sm:p-12 lg:p-16 flex items-center justify-center relative">
+    <div class="w-full max-w-lg bg-white border border-[#E5E4DE] rounded-3xl p-8 sm:p-12 shadow-premium fade-up in relative transition-all duration-300 hover:shadow-hover-card">
+
+      <div class="flex justify-between items-start mb-6">
+        <div>
+          <h1 class="font-serif text-3xl font-normal text-neutral-900 mb-1">Log in</h1>
+          <p class="text-neutral-500 text-sm">Access your fraud intelligence workspace</p>
+        </div>
+        <a href="/signup" class="text-xs font-semibold text-[#1B6A7E] hover:underline pt-1">Create account →</a>
+      </div>
+
+      <!-- Social & Guest Options -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+        <a href="/auth/google/login" class="py-3 px-4 rounded-xl text-xs font-semibold uppercase tracking-wider border border-[#E5E4DE] bg-white hover:bg-neutral-50 transition-all duration-300 shadow-2xs flex items-center justify-center gap-2.5 hover:border-neutral-400 hover:-translate-y-0.5 text-neutral-700">
+          <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l5.7-5.7C34.6 6.5 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5Z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l5.7-5.7C34.6 6.5 29.6 4 24 4 16.3 4 9.7 8.3 6.3 14.7Z"/><path fill="#4CAF50" d="M24 44c5.5 0 10.4-2.1 14.1-5.6l-6.5-5.5C29.5 34.7 26.9 36 24 36c-5.2 0-9.6-3.1-11.3-7.5l-6.5 5C9.6 39.6 16.3 44 24 44Z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.2 5.6l6.5 5.5C41.3 36 44 30.5 44 24c0-1.3-.1-2.7-.4-3.5Z"/></svg>
+          Google
         </a>
-        <button type="button" class="btn btn-secondary" id="guest-btn">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
-          Continue as guest
+        <button type="button" id="guest-btn" class="py-3 px-4 rounded-xl text-xs font-semibold uppercase tracking-wider border border-[#E5E4DE] bg-[#F7F7F5] hover:bg-neutral-100 transition-all duration-300 shadow-2xs flex items-center justify-center gap-2 text-neutral-700 hover:text-black hover:-translate-y-0.5">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+          Guest Access
         </button>
       </div>
 
-      <div class="divider">or</div>
+      <div class="flex items-center gap-4 my-6 text-neutral-400 text-[11px] uppercase tracking-wider">
+        <div class="flex-1 h-px bg-[#E5E4DE]"></div>
+        <span>or sign in with email</span>
+        <div class="flex-1 h-px bg-[#E5E4DE]"></div>
+      </div>
 
-      <form id="login-form">
-        <div class="field">
-          <label for="email">Email</label>
-          <div class="input-icon-wrap">
-            <span class="field-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg></span>
-            <input type="email" id="email" name="email" autocomplete="email" required>
-          </div>
+      <!-- Login Form -->
+      <form id="login-form" class="space-y-4">
+        <div>
+          <label for="email" class="block text-[11px] font-bold text-neutral-500 mb-2 uppercase tracking-wider">Email Address</label>
+          <input type="email" id="email" name="email" autocomplete="email" required placeholder="you@example.com" class="w-full px-4 py-3.5 rounded-xl border border-[#E5E4DE] bg-[#F7F7F5] text-sm text-neutral-900 focus:outline-none focus:border-[#1B6A7E] focus:bg-white focus:ring-2 focus:ring-[#1B6A7E]/10 transition-all">
         </div>
-        <div class="field">
-          <label for="password">Password</label>
-          <div class="input-icon-wrap">
-            <span class="field-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span>
-            <input type="password" id="password" name="password" autocomplete="current-password" required>
-            <button type="button" class="toggle-visibility" id="toggle-password" aria-label="Show password">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+
+        <div>
+          <label for="password" class="block text-[11px] font-bold text-neutral-500 mb-2 uppercase tracking-wider">Password</label>
+          <!--
+            IMPORTANT: input + toggle are FLEX SIBLINGS here, not
+            absolute-positioned. The button can never sit on top of
+            the input, so it can never block clicking/typing into it —
+            regardless of any width/z-index quirk elsewhere on the page.
+          -->
+          <div class="flex items-center rounded-xl border border-[#E5E4DE] bg-[#F7F7F5] focus-within:border-[#1B6A7E] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#1B6A7E]/10 transition-all">
+            <input
+              type="password"
+              id="password"
+              name="password"
+              autocomplete="current-password"
+              required
+              placeholder="••••••••"
+              class="flex-1 min-w-0 bg-transparent px-4 py-3.5 text-sm text-neutral-900 focus:outline-none rounded-l-xl"
+            >
+            <button
+              type="button"
+              id="toggle-password"
+              aria-label="Show password"
+              class="shrink-0 text-[11px] font-bold uppercase text-neutral-400 hover:text-neutral-700 px-4 py-3.5"
+              style="width: auto;"
+            >
+              Show
             </button>
           </div>
         </div>
 
-        <p id="login-error" class="error-text" style="display: none;"></p>
+        <div id="login-error" class="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs hidden"></div>
 
-        <button type="submit" class="btn btn-primary" id="login-submit">
-          Log in <span class="arrow">→</span>
+        <button type="submit" id="login-submit" class="w-full py-4 px-6 rounded-xl text-sm font-medium bg-black text-white hover:bg-neutral-800 transition-all duration-300 shadow-subtle flex items-center justify-center gap-2 group hover:scale-[1.01] cursor-pointer mt-4">
+          <span>Sign In</span>
+          <span class="transition-transform duration-300 group-hover:translate-x-1">→</span>
         </button>
       </form>
 
-      <p class="text-center mt-24 muted" style="display: block;">
-        Don't have an account? <a href="/signup" style="text-decoration: underline;">Sign up</a>
-      </p>
+      <div class="mt-8 text-center text-xs text-neutral-500">
+        Don't have an account? <a href="/signup" class="text-black font-semibold underline">Sign up</a>
+      </div>
     </div>
   </div>
 
@@ -78,8 +173,9 @@
   loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     loginError.style.display = "none";
+    loginError.classList.add("hidden");
     loginSubmit.disabled = true;
-    loginSubmit.textContent = "Logging in...";
+    loginSubmit.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Signing in...`;
 
     try {
       const res = await fetch("/auth/login", {
@@ -99,10 +195,11 @@
       window.location.href = "/dashboard";
     } catch (err) {
       loginError.textContent = err.message;
+      loginError.classList.remove("hidden");
       loginError.style.display = "block";
     } finally {
       loginSubmit.disabled = false;
-      loginSubmit.innerHTML = 'Log in <span class="arrow">→</span>';
+      loginSubmit.innerHTML = '<span>Sign In</span> <span class="transition-transform duration-300 group-hover:translate-x-1">→</span>';
     }
   });
 
@@ -116,7 +213,7 @@
   pwToggle.addEventListener("click", () => {
     const isHidden = pwInput.type === "password";
     pwInput.type = isHidden ? "text" : "password";
-    pwToggle.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
+    pwToggle.textContent = isHidden ? "Hide" : "Show";
   });
 </script>
 {% endblock %}

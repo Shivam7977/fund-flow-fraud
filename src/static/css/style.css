@@ -208,8 +208,15 @@ svg { display: block; flex-shrink: 0; }
 
 /* ============================================================
    BUTTONS
+   NOTE: scoped to .btn only (was previously "button, .btn"). The
+   old bare-"button" selector applied width:100%, padding:12px 20px
+   and flex centering to EVERY <button> on the page, including ones
+   from newer Tailwind-based templates that don't use this class
+   system. That silently overlaid/hid inputs sitting next to those
+   buttons (e.g. the password show/hide toggle). Any button that
+   wants these styles must now explicitly carry class="btn ...".
    ============================================================ */
-button, .btn {
+.btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   border: none; border-radius: var(--radius-sm);
   padding: 12px 20px;
