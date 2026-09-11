@@ -12,6 +12,7 @@
 </head>
 <body>
   <div class="page">
+    {% block navbar %}
     <header class="navbar">
       <a href="/" class="brand">Fund Flow</a>
       <nav>
@@ -19,7 +20,8 @@
         <a href="/uploads">Uploads</a>
       </nav>
     </header>
-    <main style="flex: 1;">
+    {% endblock %}
+    <main style="flex: 1; display: flex; flex-direction: column;">
       {% block content %}{% endblock %}
     </main>
   </div>

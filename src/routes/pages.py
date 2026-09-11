@@ -10,10 +10,7 @@ templates = Jinja2Templates(directory="templates")
 
 @router.get("/")
 def home(request: Request):
-    user = get_current_user(request)
-    if user:
-        return RedirectResponse(url="/dashboard")
-    return RedirectResponse(url="/login")
+    return templates.TemplateResponse(request=request, name="landing.html")
 
 
 @router.get("/signup")

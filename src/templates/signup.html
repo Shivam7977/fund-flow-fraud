@@ -1,59 +1,113 @@
 {% extends "base.html" %}
 {% block title %}Sign up — Fund Flow{% endblock %}
+{% block navbar %}{% endblock %}
 
 {% block content %}
-<div class="auth-wrap">
+<div class="auth-shell">
 
-  <div id="signup-step" class="auth-card">
-    <h1>Create account</h1>
-    <p>Set up access to your fraud detection dashboard.</p>
-
-    <form id="signup-form">
-      <div class="field">
-        <label for="name">Full name</label>
-        <input type="text" id="name" name="name" required>
-      </div>
-      <div class="field">
-        <label for="email">Email</label>
-        <input type="email" id="email" name="email" required>
-      </div>
-      <div class="field">
-        <label for="username">Username</label>
-        <input type="text" id="username" name="username" required>
-      </div>
-      <div class="field">
-        <label for="password">Password</label>
-        <input type="password" id="password" name="password" required>
-      </div>
-      <div class="field">
-        <label for="confirm_password">Confirm password</label>
-        <input type="password" id="confirm_password" name="confirm_password" required>
-      </div>
-
-      <p id="signup-error" class="error-text" style="display: none;"></p>
-
-      <button type="submit" class="btn btn-primary" id="signup-submit">Create account</button>
-    </form>
-
-    <p class="text-center mt-24 muted">
-      Already have an account? <a href="/login" style="text-decoration: underline;">Log in</a>
-    </p>
+  <div class="auth-top-link">
+    Already have an account? <a href="/login">Log in</a>
   </div>
 
-  <div id="otp-step" class="auth-card" style="display: none;">
-    <h1>Verify your email</h1>
-    <p>Enter the code sent to <strong id="otp-email-display"></strong>.</p>
+  <div class="auth-right-inner">
+    <div class="mobile-brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V5l-8-3Z"/></svg>
+      Fund Flow
+    </div>
 
-    <form id="otp-form">
-      <div class="field">
-        <label for="otp">Verification code</label>
-        <input type="text" id="otp" name="otp" inputmode="numeric" required>
-      </div>
+    <div class="step-dots" id="step-dots" aria-hidden="true">
+      <span class="step-dot active" data-step="1"></span>
+      <span class="step-dot" data-step="2"></span>
+    </div>
 
-      <p id="otp-error" class="error-text" style="display: none;"></p>
+    <!-- STEP 1 : signup form -->
+    <div id="signup-step" class="auth-card auth-step">
+      <span class="eyebrow-badge">Step 1 of 2</span>
+      <h1>Create your account</h1>
+      <p>Set up access to your fraud detection dashboard.</p>
 
-      <button type="submit" class="btn btn-primary" id="otp-submit">Verify</button>
-    </form>
+      <form id="signup-form">
+        <div class="field">
+          <label for="name">Full name</label>
+          <div class="input-icon-wrap">
+            <span class="field-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span>
+            <input type="text" id="name" name="name" autocomplete="name" placeholder="Shivam Pandey" required>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="email">Email</label>
+          <div class="input-icon-wrap">
+            <span class="field-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg></span>
+            <input type="email" id="email" name="email" autocomplete="email" placeholder="you@example.com" required>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="username">Username</label>
+          <div class="input-icon-wrap">
+            <span class="field-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v4H4zM4 10h10v10H4zM16 10h4v10h-4z"/></svg></span>
+            <input type="text" id="username" name="username" autocomplete="username" placeholder="shivam7977" required>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="password">Password</label>
+            <div class="input-icon-wrap">
+              <span class="field-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span>
+              <input type="password" id="password" name="password" autocomplete="new-password" required>
+              <button type="button" class="toggle-visibility" data-target="password" aria-label="Show password">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="confirm_password">Confirm</label>
+            <div class="input-icon-wrap">
+              <span class="field-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span>
+              <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" required>
+              <button type="button" class="toggle-visibility" data-target="confirm_password" aria-label="Show password">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <p id="signup-error" class="error-text" style="display: none;"></p>
+
+        <button type="submit" class="btn btn-primary" id="signup-submit">
+          Create account <span class="arrow">→</span>
+        </button>
+      </form>
+
+      <p class="text-center mt-24 muted">
+        Already have an account? <a href="/login" style="text-decoration: underline;">Log in</a>
+      </p>
+    </div>
+
+    <!-- STEP 2 : OTP -->
+    <div id="otp-step" class="auth-card auth-step" style="display: none;">
+      <span class="eyebrow-badge">Step 2 of 2</span>
+      <h1>Verify your email</h1>
+      <p>Enter the 6-digit code sent to <strong id="otp-email-display"></strong>.</p>
+
+      <form id="otp-form">
+        <div class="field">
+          <label for="otp">Verification code</label>
+          <input type="text" id="otp" name="otp" class="otp-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" required>
+        </div>
+
+        <p id="otp-error" class="error-text" style="display: none;"></p>
+
+        <button type="submit" class="btn btn-primary" id="otp-submit">Verify</button>
+      </form>
+
+      <p class="text-center mt-24 muted">
+        Wrong email? <a href="#" id="back-to-signup" style="text-decoration: underline;">Go back</a>
+      </p>
+    </div>
   </div>
 
 </div>
@@ -67,13 +121,31 @@
   const otpStep = document.getElementById("otp-step");
   const signupError = document.getElementById("signup-error");
   const signupSubmit = document.getElementById("signup-submit");
+  const dots = document.querySelectorAll(".step-dot");
   let signedUpEmail = "";
+
+  function goToStep(n) {
+    dots.forEach(d => d.classList.toggle("active", Number(d.dataset.step) <= n));
+    if (n === 1) {
+      otpStep.style.display = "none";
+      signupStep.style.display = "block";
+      signupStep.classList.remove("auth-step");
+      void signupStep.offsetWidth;
+      signupStep.classList.add("auth-step");
+    } else {
+      signupStep.style.display = "none";
+      otpStep.style.display = "block";
+      otpStep.classList.remove("auth-step");
+      void otpStep.offsetWidth;
+      otpStep.classList.add("auth-step");
+    }
+  }
 
   signupForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     signupError.style.display = "none";
     signupSubmit.disabled = true;
-    signupSubmit.textContent = "Creating...";
+    signupSubmit.innerHTML = "Creating...";
 
     const body = {
       name: document.getElementById("name").value,
@@ -97,14 +169,14 @@
 
       signedUpEmail = body.email;
       document.getElementById("otp-email-display").textContent = signedUpEmail;
-      signupStep.style.display = "none";
-      otpStep.style.display = "block";
+      goToStep(2);
+      document.getElementById("otp").focus();
     } catch (err) {
       signupError.textContent = err.message;
       signupError.style.display = "block";
     } finally {
       signupSubmit.disabled = false;
-      signupSubmit.textContent = "Create account";
+      signupSubmit.innerHTML = 'Create account <span class="arrow">→</span>';
     }
   });
 
@@ -138,6 +210,20 @@
       otpSubmit.disabled = false;
       otpSubmit.textContent = "Verify";
     }
+  });
+
+  document.getElementById("back-to-signup").addEventListener("click", (e) => {
+    e.preventDefault();
+    goToStep(1);
+  });
+
+  document.querySelectorAll(".toggle-visibility").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const input = document.getElementById(btn.dataset.target);
+      const isHidden = input.type === "password";
+      input.type = isHidden ? "text" : "password";
+      btn.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
+    });
   });
 </script>
 {% endblock %}
