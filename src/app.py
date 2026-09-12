@@ -12,6 +12,7 @@ from routes.predict_batch import router as predict_batch_router
 from routes.predict_file import router as predict_file_router, uploads_router
 from routes.graph import router as graph_router
 from routes.pages import router as pages_router
+from routes.dashboard_pages import router as dashboard_pages_router
 
 
 @asynccontextmanager
@@ -52,6 +53,7 @@ app.include_router(predict_file_router)
 app.include_router(uploads_router)
 app.include_router(graph_router)
 app.include_router(pages_router)
+app.include_router(dashboard_pages_router)
 
 
 @app.get("/health")

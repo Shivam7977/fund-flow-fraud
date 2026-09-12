@@ -32,6 +32,7 @@ with open(settings.ACCOUNT_TYPE_MAP_PATH) as f:
 
 TYPE_COLUMNS = ["type_ATM_WITHDRAWAL", "type_CASH_DEPOSIT", "type_NACH", "type_NEFT", "type_UPI"]
 ACCT_COLUMNS = ["acct_business", "acct_current", "acct_jan_dhan", "acct_savings", "acct_student"]
+VALID_ACCOUNT_TYPES = {"business", "current", "jan_dhan", "savings", "student"}
 
 RBI_STRUCTURING_MIN = 40000
 RBI_STRUCTURING_MAX = 49999
@@ -41,12 +42,19 @@ RBI_RTGS_MIN = 200000
 
 # ---------- Feature building ----------
 
-def _get_account_type(account_id: str) -> str:
+def _get_account_type(account_id: str, override: str | None = None) -> str:
     """
     Static graph se aaya account, toh uska real type map mein milega.
     Naya/unknown account → 'savings' default (India mein sabse common type,
     isliye least-biased guess).
+
+    `override` — agar caller (single-transaction /predict check) ne
+    explicitly account_type diya hai, wahi priority se use hoga. Isse
+    CSV/batch path par koi asar nahi padta, wahan ye kabhi set hi nahi
+    hota, so behavior bilkul pehle jaisa rehta hai.
     """
+    if override and override in VALID_ACCOUNT_TYPES:
+        return override
     return ACCOUNT_TYPE_MAP.get(account_id, "savings")
 
 
@@ -81,6 +89,11 @@ def build_features(txn: dict, batch_history: list = None) -> pd.DataFrame:
       nameOrig, nameDest, amount_inr, oldbalance_inr, newbalance_inr,
       hour (0-23), day_of_week (0-6), txn_type (one of ATM_WITHDRAWAL/
       CASH_DEPOSIT/NACH/NEFT/UPI)
+
+    Optional key:
+      account_type — manual override (business/current/jan_dhan/savings/
+      student). Only used if present; otherwise the sender's account
+      type is looked up from the static ACCOUNT_TYPE_MAP as before.
 
     batch_history = optional list of transactions processed earlier in
     the same /predict-batch request (see ml_engine._get_velocity).
@@ -135,7 +148,7 @@ def build_features(txn: dict, batch_history: list = None) -> pd.DataFrame:
     row[f"type_{txn_type}"] = 1
 
     # One-hot: account type (of the sender)
-    account_type = _get_account_type(txn["nameOrig"])
+    account_type = _get_account_type(txn["nameOrig"], txn.get("account_type"))
     for col in ACCT_COLUMNS:
         row[col] = 0
     row[f"acct_{account_type}"] = 1

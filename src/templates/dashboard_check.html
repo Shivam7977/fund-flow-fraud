@@ -3,6 +3,9 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="/static/css/dashboard.css">
+<style>
+  .dash-form label .req { color: var(--fraud-text); margin-left: 2px; }
+</style>
 {% endblock %}
 
 {% block navbar %}
@@ -24,21 +27,22 @@
       <div class="dash-panel">
         <div class="dash-panel-head"><h3>Transaction Details</h3></div>
         <form id="check-form" class="dash-form">
+
           <div class="field">
-            <label for="nameOrig">Sender Account</label>
+            <label for="nameOrig">Sender Account<span class="req">*</span></label>
             <input type="text" id="nameOrig" name="nameOrig" placeholder="ACC-1042" required>
           </div>
           <div class="field">
-            <label for="nameDest">Receiver Account</label>
+            <label for="nameDest">Receiver Account<span class="req">*</span></label>
             <input type="text" id="nameDest" name="nameDest" placeholder="ACC-8821" required>
           </div>
           <div class="dash-form-row">
             <div class="field">
-              <label for="amount_inr">Amount (₹)</label>
+              <label for="amount_inr">Amount (₹)<span class="req">*</span></label>
               <input type="number" id="amount_inr" name="amount_inr" placeholder="48750" required min="0" step="0.01">
             </div>
             <div class="field">
-              <label for="txn_type">Transaction Type</label>
+              <label for="txn_type">Transaction Type<span class="req">*</span></label>
               <select id="txn_type" name="txn_type" required>
                 <option value="UPI">UPI</option>
                 <option value="NEFT">NEFT</option>
@@ -49,23 +53,43 @@
               </select>
             </div>
           </div>
+
           <div class="dash-form-row">
+            <div class="field">
+              <label for="account_type">Sender Account Type</label>
+              <select id="account_type" name="account_type">
+                <option value="">Auto (from account history)</option>
+                <option value="savings">Savings</option>
+                <option value="current">Current</option>
+                <option value="business">Business</option>
+                <option value="student">Student</option>
+                <option value="jan_dhan">Jan Dhan</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="txn_date">Date</label>
+              <input type="date" id="txn_date" name="txn_date">
+            </div>
+          </div>
+
+          <div class="dash-form-row">
+            <div class="field">
+              <label for="hour">Hour</label>
+              <select id="hour" name="hour"></select>
+            </div>
             <div class="field">
               <label for="oldbalance_inr">Sender Balance Before (₹)</label>
               <input type="number" id="oldbalance_inr" name="oldbalance_inr" placeholder="0" min="0" step="0.01">
             </div>
-            <div class="field">
-              <label for="newbalance_inr">Sender Balance After (₹)</label>
-              <input type="number" id="newbalance_inr" name="newbalance_inr" placeholder="0" min="0" step="0.01">
-            </div>
           </div>
-          <p style="font-size:11.5px; color: var(--text-muted); margin: -8px 0 16px;">
-            Hour, day-of-week and same-day grouping are filled in automatically from the current time.
-          </p>
+          <div class="field">
+            <label for="newbalance_inr">Sender Balance After (₹)</label>
+            <input type="number" id="newbalance_inr" name="newbalance_inr" placeholder="0" min="0" step="0.01">
+          </div>
 
           <div id="check-error" class="dash-mapping-note" style="display:none; background: var(--fraud-bg); color: var(--fraud-text);"></div>
 
-          <button type="submit" id="check-submit" class="dash-btn dash-btn-dark" style="width:100%;">Score Transaction →</button>
+          <button type="submit" id="check-submit" class="dash-btn dash-btn-dark" style="width:100%; margin-top:10px;">Score Transaction →</button>
         </form>
       </div>
 
@@ -93,6 +117,38 @@
     return "normal";
   }
 
+  // ---- Populate Hour dropdown (00:00 .. 23:00), default = 0 ----
+  const hourSelect = document.getElementById("hour");
+  for (let h = 0; h < 24; h++) {
+    const opt = document.createElement("option");
+    opt.value = h;
+    opt.textContent = String(h).padStart(2, "0") + ":00";
+    hourSelect.appendChild(opt);
+  }
+
+  // ---- Default the date picker to today, so day/day_of_week always
+  // have a sensible value without the user having to think about it ----
+  const dateInput = document.getElementById("txn_date");
+  dateInput.valueAsDate = new Date();
+
+  function computeDayFields(dateStr) {
+    const d = dateStr ? new Date(dateStr + "T00:00:00") : new Date();
+    // JS getDay(): 0=Sun..6=Sat. Convert to 0=Mon..6=Sun to match the backend.
+    const day_of_week = (d.getDay() + 6) % 7;
+    const day = Math.floor(d.getTime() / 86400000); // consistent same-day grouping key
+    return { day_of_week, day };
+  }
+
+  function optionalNumber(id) {
+    const v = document.getElementById(id).value;
+    return v === "" ? null : parseFloat(v);
+  }
+
+  const FIELD_LABELS = {
+    oldbalance_inr: "Balance Before", newbalance_inr: "Balance After",
+    hour: "Hour", day_of_week: "Day of Week", day: "Day Number",
+  };
+
   const checkForm = document.getElementById("check-form");
   const checkError = document.getElementById("check-error");
   const checkSubmit = document.getElementById("check-submit");
@@ -104,19 +160,20 @@
     checkSubmit.disabled = true;
     checkSubmit.textContent = "Scoring...";
 
-    const now = new Date();
+    const { day_of_week, day } = computeDayFields(dateInput.value);
+    const accountTypeVal = document.getElementById("account_type").value;
 
-    // Matches TransactionIn in routes/predict.py exactly.
     const body = {
       nameOrig: document.getElementById("nameOrig").value,
       nameDest: document.getElementById("nameDest").value,
       amount_inr: parseFloat(document.getElementById("amount_inr").value),
-      oldbalance_inr: parseFloat(document.getElementById("oldbalance_inr").value || "0"),
-      newbalance_inr: parseFloat(document.getElementById("newbalance_inr").value || "0"),
-      hour: now.getHours(),
-      day_of_week: now.getDay(),
-      day: Math.floor(now.getTime() / 86400000), // same-day grouping key for the graph engine
       txn_type: document.getElementById("txn_type").value,
+      account_type: accountTypeVal || null,
+      oldbalance_inr: optionalNumber("oldbalance_inr"),
+      newbalance_inr: optionalNumber("newbalance_inr"),
+      hour: parseInt(hourSelect.value, 10),
+      day_of_week,
+      day,
     };
 
     try {
@@ -129,10 +186,9 @@
       const data = await res.json();
       if (!res.ok) throw new Error((data.detail && (data.detail.error || data.detail)) || "Scoring failed.");
 
-      // Response shape (routes/predict.py):
-      // { final_score, risk_level, ml_score, iso_score, xgb2_score, exp3_score, graph_score, graph_flags, saved }
       const level = (data.risk_level || "NORMAL").toUpperCase();
       const pct = (data.final_score * 100).toFixed(1);
+      const defaultsUsed = data.defaults_used || [];
 
       checkResult.innerHTML = `
         <div class="dash-result">
@@ -148,14 +204,17 @@
             <div class="score-box"><div class="k">Graph</div><div class="v">${data.graph_score}</div></div>
             <div class="score-box"><div class="k">Isolation</div><div class="v">${data.iso_score}</div></div>
           </div>
-          <div class="score-row" style="margin-bottom:18px;">
+          <div class="score-row" style="margin-bottom:14px;">
             <div class="score-box"><div class="k">XGB V2</div><div class="v">${data.xgb2_score}</div></div>
             <div class="score-box"><div class="k">XGB Exp3</div><div class="v">${data.exp3_score}</div></div>
             <div class="score-box"><div class="k">Saved</div><div class="v" style="font-size:12px;">${data.saved ? "Yes" : "Guest"}</div></div>
           </div>
           ${Array.isArray(data.graph_flags) && data.graph_flags.length
-            ? `<div class="flags">${data.graph_flags.map(f => `<span class="flag">${f}</span>`).join("")}</div>`
-            : `<p style="font-size:12.5px; color: var(--text-muted); margin:0;">No graph patterns flagged.</p>`}
+            ? `<div class="flags" style="margin-bottom:14px;">${data.graph_flags.map(f => `<span class="flag">${f}</span>`).join("")}</div>`
+            : `<p style="font-size:12.5px; color: var(--text-muted); margin:0 0 14px;">No graph patterns flagged.</p>`}
+          ${defaultsUsed.length
+            ? `<p style="font-size:11.5px; color: var(--review-text); background: var(--review-bg); padding:8px 12px; border-radius: var(--radius-sm); margin:0;">Defaulted: ${defaultsUsed.map(f => FIELD_LABELS[f] || f).join(", ")}</p>`
+            : ""}
         </div>
       `;
     } catch (err) {

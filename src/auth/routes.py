@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Request, Response, HTTPException
+from fastapi.responses import RedirectResponse
 from config import settings
 from auth.models import SignupRequest, OTPVerifyRequest, LoginRequest, MessageResponse
 from auth.utils import hash_password, verify_password, generate_otp, is_otp_expired, generate_session_token
@@ -112,14 +113,19 @@ async def google_login(request: Request):
 
 
 @router.get("/google/callback")
-async def google_callback(request: Request, response: Response):
+async def google_callback(request: Request):
     try:
         user = await handle_google_callback(request)
     except Exception as e:
         raise HTTPException(400, f"Google login failed. Please try again: {e}")
 
-    _set_session_cookie(response, user["id"])
-    return {"status": "ok", "message": "Google login successful", "user": user["email"]}
+    # IMPORTANT: cookie must be set on the redirect response itself.
+    # Setting it on an injected `response: Response` param only merges
+    # into the final response when you return a plain dict — it does
+    # NOT merge when you return a RedirectResponse instance directly.
+    redirect = RedirectResponse(url="/dashboard")
+    _set_session_cookie(redirect, user["id"])
+    return redirect
 
 
 # ---------- Current user helper (dusre routes ke liye) ----------
