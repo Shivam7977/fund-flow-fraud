@@ -1,0 +1,34 @@
+<header class="dash-nav">
+  <div class="dash-nav-inner">
+    <a href="/dashboard" class="dash-brand">
+      <span class="mark"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V5l-8-3Z"/></svg></span>
+      Fund Flow
+    </a>
+    <nav class="dash-tabs">
+      <a href="/dashboard" class="dash-tab {{ 'active' if active_tab == 'overview' else '' }}">Overview</a>
+      <a href="/dashboard/check" class="dash-tab {{ 'active' if active_tab == 'check' else '' }}">Check Transaction</a>
+      <a href="/dashboard/uploads" class="dash-tab {{ 'active' if active_tab == 'uploads' else '' }}">Uploads</a>
+    </nav>
+    <div class="dash-nav-right">
+      <button type="button" id="dash-logout-btn" class="dash-logout" style="background:none; border:none; padding:0; cursor:pointer; font-family: inherit; width:auto;">Log out</button>
+    </div>
+  </div>
+</header>
+<div class="dash-tabs-mobile">
+  <a href="/dashboard" class="dash-tab {{ 'active' if active_tab == 'overview' else '' }}">Overview</a>
+  <a href="/dashboard/check" class="dash-tab {{ 'active' if active_tab == 'check' else '' }}">Check</a>
+  <a href="/dashboard/uploads" class="dash-tab {{ 'active' if active_tab == 'uploads' else '' }}">Uploads</a>
+</div>
+
+<script>
+  // /auth/logout is a POST endpoint (routes.py: @router.post("/logout")) —
+  // a plain <a href> would only ever GET it and 405. Fetch POST, then redirect.
+  document.getElementById("dash-logout-btn").addEventListener("click", async () => {
+    try {
+      await fetch("/auth/logout", { method: "POST", credentials: "include" });
+    } catch (err) {
+      console.error(err);
+    }
+    window.location.href = "/login";
+  });
+</script>

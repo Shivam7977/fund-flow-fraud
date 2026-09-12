@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Uploads — Fund Flow{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="/static/css/dashboard.css">
+{% endblock %}
+
+{% block navbar %}
+{% include "partials/dashboard_nav.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="dash-body">
+  <div class="dash-wrap">
+
+    <div class="dash-header">
+      <div>
+        <h1>Uploads</h1>
+        <p>Batch-score a transaction CSV and review past jobs.</p>
+      </div>
+    </div>
+
+    <div class="dash-upload-drop" id="drop-zone">
+      <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v3M16 4v3"/></svg></div>
+      <p>Drag a CSV here, or choose a file — column mapping happens automatically.</p>
+      <label for="file-input" class="dash-btn dash-btn-outline" style="cursor:pointer;">Choose CSV<input type="file" id="file-input" accept=".csv"></label>
+      <div id="selected-file" style="margin-top:12px; font-size:12.5px; color: var(--text-secondary);"></div>
+      <div id="upload-actions" style="margin-top:14px; display:none;">
+        <button id="upload-submit" class="dash-btn dash-btn-dark">Upload &amp; Score →</button>
+      </div>
+    </div>
+
+    <div id="confirm-banner"></div>
+
+    <div class="dash-panel">
+      <div class="dash-panel-head"><h3>Job History</h3></div>
+      <div id="jobs-table">
+        <div class="dash-skeleton"></div>
+        <div class="dash-skeleton"></div>
+        <div class="dash-skeleton"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function pick(obj, keys, fallback) {
+    for (const k of keys) { if (obj && obj[k] !== undefined && obj[k] !== null) return obj[k]; }
+    return fallback;
+  }
+  function badgeClass(status) {
+    const s = (status || "").toString().toLowerCase();
+    if (s.includes("fail")) return "fraud";
+    if (s.includes("pending")) return "review";
+    if (s.includes("done") || s.includes("complete")) return "normal";
+    return "neutral";
+  }
+  function fmtTime(v) {
+    if (!v) return "";
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? String(v) : d.toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  }
+
+  const dropZone = document.getElementById("drop-zone");
+  const fileInput = document.getElementById("file-input");
+  const selectedFile = document.getElementById("selected-file");
+  const uploadActions = document.getElementById("upload-actions");
+  const confirmBanner = document.getElementById("confirm-banner");
+  let chosenFile = null;
+  let pendingJobId = null;
+
+  ["dragover", "dragenter"].forEach(evt => dropZone.addEventListener(evt, (e) => { e.preventDefault(); dropZone.classList.add("drag"); }));
+  ["dragleave", "drop"].forEach(evt => dropZone.addEventListener(evt, (e) => { e.preventDefault(); dropZone.classList.remove("drag"); }));
+  dropZone.addEventListener("drop", (e) => { if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
+  fileInput.addEventListener("change", (e) => { if (e.target.files[0]) setFile(e.target.files[0]); });
+
+  function setFile(file) {
+    chosenFile = file;
+    selectedFile.textContent = file.name + " · " + (file.size / 1024).toFixed(1) + " KB";
+    uploadActions.style.display = "block";
+  }
+
+  document.getElementById("upload-submit").addEventListener("click", async () => {
+    if (!chosenFile) return;
+    const btn = document.getElementById("upload-submit");
+    btn.disabled = true;
+    btn.textContent = "Uploading...";
+
+    const formData = new FormData();
+    formData.append("file", chosenFile);
+
+    try {
+      // ==== ADAPT HERE: confirm this matches routes/predict_file.py's
+      // POST /predict/file — field name for the file part may differ. ====
+      const res = await fetch("/predict/file", { method: "POST", credentials: "include", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || data.message || "Upload failed.");
+
+      const status = data.status;
+      const jobId = data.job_id;
+
+      if (status === "pending_confirmation") {
+        pendingJobId = jobId;
+        const missing = data.missing_optional_fields || [];
+        confirmBanner.innerHTML = `
+          <div class="dash-confirm-banner">
+            <div class="txt"><strong>Some optional columns are missing</strong>${missing.length ? missing.join(", ") : "Proceed with defaults, or go back and remap."}</div>
+            <div style="display:flex; gap:8px;">
+              <button class="dash-btn dash-btn-dark" id="confirm-proceed">Proceed with defaults</button>
+            </div>
+          </div>`;
+        document.getElementById("confirm-proceed").addEventListener("click", confirmProceed);
+      } else {
+        loadJobs();
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Upload & Score →";
+    }
+  });
+
+  async function confirmProceed() {
+    if (!pendingJobId) return;
+    try {
+      // ==== ADAPT HERE: confirm POST /predict/file/{job_id}/confirm body shape ====
+      const res = await fetch(`/predict/file/${pendingJobId}/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ proceed_with_defaults: true }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.detail || "Could not confirm job."); }
+      confirmBanner.innerHTML = "";
+      loadJobs();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  async function loadJobs() {
+    try {
+      // ==== ADAPT HERE: confirm GET /uploads returns an array (or {jobs:[...]}) ====
+      const res = await fetch("/uploads", { credentials: "include" });
+      const data = await res.json();
+      const jobs = Array.isArray(data) ? data : pick(data, ["jobs", "uploads"], []);
+
+      const container = document.getElementById("jobs-table");
+      if (!jobs.length) {
+        container.innerHTML = `<div class="dash-empty">No uploads yet — drop a CSV above to run your first batch scan.</div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <table class="dash-table">
+          <thead><tr><th>File</th><th>Status</th><th>Rows</th><th>Uploaded</th></tr></thead>
+          <tbody>
+            ${jobs.map((j) => {
+              const id = pick(j, ["job_id", "id"], "");
+              const filename = pick(j, ["filename", "file_name"], "transactions.csv");
+              const status = pick(j, ["status"], "processing");
+              const rows = pick(j, ["total_rows", "row_count"], "—");
+              const created = pick(j, ["created_at", "timestamp"], "");
+              return `
+                <tr class="clickable" onclick="window.location='/dashboard/uploads/${id}'">
+                  <td><div class="fname">${filename}</div><div class="fmeta">${id}</div></td>
+                  <td><span class="dash-badge ${badgeClass(status)}">${status.toString().toUpperCase()}</span></td>
+                  <td>${rows}</td>
+                  <td>${fmtTime(created)}</td>
+                </tr>`;
+            }).join("")}
+          </tbody>
+        </table>`;
+    } catch (err) {
+      document.getElementById("jobs-table").innerHTML = `<div class="dash-empty">Couldn't load job history.</div>`;
+      console.error(err);
+    }
+  }
+
+  loadJobs();
+</script>
+{% endblock %}

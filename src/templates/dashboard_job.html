@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Job — Fund Flow{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="/static/css/dashboard.css">
+{% endblock %}
+
+{% block navbar %}
+{% include "partials/dashboard_nav.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="dash-body">
+  <div class="dash-wrap">
+
+    <div class="dash-header">
+      <div>
+        <a href="/dashboard/uploads" style="font-size:12.5px; color: var(--text-muted);">← Back to uploads</a>
+        <h1 id="job-title" style="margin-top:6px;">Loading…</h1>
+        <p id="job-meta"></p>
+      </div>
+    </div>
+
+    <div class="dash-job-summary" id="job-summary">
+      <div class="box fraud"><div class="n">—</div><div class="l">Fraud</div></div>
+      <div class="box review"><div class="n">—</div><div class="l">Review</div></div>
+      <div class="box normal"><div class="n">—</div><div class="l">Normal</div></div>
+    </div>
+
+    <div class="dash-panel">
+      <div class="dash-panel-head"><h3>Fund-Flow Graph</h3></div>
+      <div id="graph-container">
+        <div class="dash-empty">Loading…</div>
+      </div>
+    </div>
+
+    <div class="dash-panel">
+      <div class="dash-panel-head"><h3>Flagged Transactions</h3></div>
+      <div id="predictions-table">
+        <div class="dash-skeleton"></div>
+        <div class="dash-skeleton"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const JOB_ID = {{ job_id | tojson }};
+
+  function badgeClass(level) {
+    const l = (level || "").toString().toUpperCase();
+    if (l === "FRAUD") return "fraud";
+    if (l === "REVIEW") return "review";
+    return "normal";
+  }
+  function fmtAmount(v) {
+    if (v === undefined || v === null) return "—";
+    const n = Number(v);
+    return isNaN(n) ? String(v) : "₹" + n.toLocaleString("en-IN");
+  }
+
+  async function loadJob() {
+    // GET /uploads/{job_id} -> { job: {...}, predictions: [...] }
+    try {
+      const res = await fetch(`/uploads/${JOB_ID}`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Could not load job.");
+
+      const job = data.job;
+      const predictions = data.predictions || [];
+
+      document.getElementById("job-title").textContent = job.filename || JOB_ID;
+
+      let metaText = `Status: ${job.status}`;
+      if (job.status === "failed" && job.error_message) metaText += ` — ${job.error_message}`;
+      document.getElementById("job-meta").textContent = metaText;
+
+      // result_summary is stored as a JSON string ({total, fraud, review, normal}) once status is "done".
+      let fraud = 0, review = 0, normal = 0;
+      if (job.result_summary) {
+        try {
+          const summary = JSON.parse(job.result_summary);
+          fraud = summary.fraud ?? 0;
+          review = summary.review ?? 0;
+          normal = summary.normal ?? 0;
+        } catch { /* fall through to counting predictions below */ }
+      }
+      if (!job.result_summary) {
+        fraud = predictions.filter(p => p.risk_level === "FRAUD").length;
+        review = predictions.filter(p => p.risk_level === "REVIEW").length;
+        normal = predictions.filter(p => p.risk_level === "NORMAL").length;
+      }
+
+      document.getElementById("job-summary").innerHTML = `
+        <div class="box fraud"><div class="n">${fraud}</div><div class="l">Fraud</div></div>
+        <div class="box review"><div class="n">${review}</div><div class="l">Review</div></div>
+        <div class="box normal"><div class="n">${normal}</div><div class="l">Normal</div></div>
+      `;
+
+      const flagged = predictions.filter(p => p.risk_level === "FRAUD" || p.risk_level === "REVIEW");
+      const table = document.getElementById("predictions-table");
+
+      if (job.status === "processing" || job.status === "pending_confirmation") {
+        table.innerHTML = `<div class="dash-empty">Job is still ${job.status} — check back shortly.</div>`;
+      } else if (!flagged.length) {
+        table.innerHTML = `<div class="dash-empty">No flagged transactions in this job.</div>`;
+      } else {
+        table.innerHTML = `
+          <table class="dash-table">
+            <thead><tr><th>Sender</th><th>Receiver</th><th>Type</th><th>Amount</th><th>Risk</th></tr></thead>
+            <tbody>
+              ${flagged.map((p) => `
+                <tr>
+                  <td>${p.nameOrig}</td>
+                  <td>${p.nameDest}</td>
+                  <td>${p.type || "—"}</td>
+                  <td>${fmtAmount(p.amount_inr)}</td>
+                  <td><span class="dash-badge ${badgeClass(p.risk_level)}">${p.risk_level}</span></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>`;
+      }
+
+      loadGraph(job.status, fraud + review);
+    } catch (err) {
+      document.getElementById("job-meta").textContent = "Couldn't load this job.";
+      document.getElementById("graph-container").innerHTML = `<div class="dash-empty">—</div>`;
+      console.error(err);
+    }
+  }
+
+  function loadGraph(status, flaggedCount) {
+    const container = document.getElementById("graph-container");
+    if (status !== "done") {
+      container.innerHTML = `<div class="dash-empty">Graph will be available once the job finishes processing.</div>`;
+      return;
+    }
+    if (!flaggedCount) {
+      container.innerHTML = `<div class="dash-empty">No FRAUD/REVIEW transactions were flagged — nothing to graph.</div>`;
+      return;
+    }
+    // GET /predict/file/{job_id}/graph -> serves a standalone PyVis HTML page
+    const graphUrl = `/predict/file/${JOB_ID}/graph`;
+    container.innerHTML = `<div class="dash-graph-embed"><iframe src="${graphUrl}" loading="lazy"></iframe></div>`;
+  }
+
+  loadJob();
+</script>
+{% endblock %}

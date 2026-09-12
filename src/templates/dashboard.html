@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Overview — Fund Flow{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="/static/css/dashboard.css">
+{% endblock %}
+
+{% block navbar %}
+{% include "partials/dashboard_nav.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="dash-body">
+  <div class="dash-wrap">
+
+    <div class="dash-header">
+      <div>
+        <h1>Overview</h1>
+        <p>Detection activity across your account.</p>
+      </div>
+      <a href="/dashboard/check" class="dash-btn dash-btn-dark">Check a Transaction →</a>
+    </div>
+
+    <div class="dash-stat-grid" id="stat-grid">
+      <div class="dash-stat-card"><div class="lbl">Total Scored</div><div class="val">—</div></div>
+      <div class="dash-stat-card"><div class="lbl">Fraud</div><div class="val">—</div></div>
+      <div class="dash-stat-card"><div class="lbl">Review</div><div class="val">—</div></div>
+      <div class="dash-stat-card blue"><div class="lbl">Normal</div><div class="val">—</div></div>
+    </div>
+
+    <div class="dash-quick-grid">
+      <a href="/dashboard/check" class="dash-quick-card">
+        <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V5l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg></div>
+        <div><h4>Check a transaction</h4><p>Score a single transaction with the ML + graph engine.</p></div>
+      </a>
+      <a href="/dashboard/uploads" class="dash-quick-card">
+        <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v3M16 4v3"/></svg></div>
+        <div><h4>Upload a CSV</h4><p>Batch-score a transaction file and trace fund-flow graphs.</p></div>
+      </a>
+    </div>
+
+    <div class="dash-panel">
+      <div class="dash-panel-head">
+        <h3>Recent Uploads</h3>
+        <a href="/dashboard/uploads">View all →</a>
+      </div>
+      <div id="recent-uploads">
+        <div class="dash-skeleton"></div>
+        <div class="dash-skeleton"></div>
+        <div class="dash-skeleton"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function badgeClass(status) {
+    const s = (status || "").toString().toLowerCase();
+    if (s === "failed") return "fraud";
+    if (s === "pending_confirmation" || s === "processing") return "review";
+    if (s === "done") return "normal";
+    return "neutral";
+  }
+  function fmtTime(v) {
+    if (!v) return "";
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? String(v) : d.toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  }
+
+  async function loadOverview() {
+    // GET /activity -> { total_predictions: number, by_risk_level: { FRAUD?, REVIEW?, NORMAL? } }
+    try {
+      const res = await fetch("/activity", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        const byRisk = data.by_risk_level || {};
+        const total = data.total_predictions ?? 0;
+        const fraud = byRisk.FRAUD ?? 0;
+        const review = byRisk.REVIEW ?? 0;
+        const normal = byRisk.NORMAL ?? 0;
+
+        document.getElementById("stat-grid").innerHTML = `
+          <div class="dash-stat-card"><div class="lbl">Total Scored</div><div class="val">${total}</div></div>
+          <div class="dash-stat-card"><div class="lbl">Fraud</div><div class="val">${fraud}</div></div>
+          <div class="dash-stat-card"><div class="lbl">Review</div><div class="val">${review}</div></div>
+          <div class="dash-stat-card blue"><div class="lbl">Normal</div><div class="val">${normal}</div></div>
+        `;
+      } else if (res.status === 401) {
+        // Guest accounts can't view activity — predictions aren't saved for guests.
+        document.getElementById("stat-grid").innerHTML = `
+          <div class="dash-stat-card" style="grid-column: 1 / -1;">
+            <div class="lbl">Guest Mode</div>
+            <div class="sub" style="margin-top:6px;">Sign up to save your prediction history and see stats here.</div>
+          </div>`;
+      }
+    } catch (err) {
+      console.error(err);
+    }
+
+    // GET /uploads -> { uploads: [ {job_id, filename, status, total_rows, created_at, ...}, ... ] }
+    try {
+      const res = await fetch("/uploads", { credentials: "include" });
+      const container = document.getElementById("recent-uploads");
+      if (!res.ok) {
+        container.innerHTML = `<div class="dash-empty">Sign up (not guest) to see upload history.</div>`;
+        return;
+      }
+      const data = await res.json();
+      const jobs = (data.uploads || []).slice(0, 5);
+
+      if (!jobs.length) {
+        container.innerHTML = `
+          <div class="dash-empty">
+            <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v3M16 4v3"/></svg></div>
+            No uploads yet — upload a CSV to get started.
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = '<div class="dash-row-list">' + jobs.map((j) => `
+        <div class="dash-row" style="cursor:pointer;" onclick="window.location='/dashboard/uploads/${j.job_id}'">
+          <div class="left">
+            <span class="id">${j.filename || j.job_id}</span>
+            <span class="meta">${j.total_rows ?? "—"} rows · ${fmtTime(j.created_at)}</span>
+          </div>
+          <div class="right">
+            <span class="dash-badge ${badgeClass(j.status)}">${(j.status || "").toUpperCase()}</span>
+          </div>
+        </div>`).join("") + '</div>';
+    } catch (err) {
+      document.getElementById("recent-uploads").innerHTML = `<div class="dash-empty">Couldn't load uploads.</div>`;
+      console.error(err);
+    }
+  }
+
+  loadOverview();
+</script>
+{% endblock %}
