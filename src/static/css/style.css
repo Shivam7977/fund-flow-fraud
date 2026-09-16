@@ -1,28 +1,28 @@
 /* ============================================================
-   DESIGN TOKENS
+   DESIGN TOKENS — FUND FLOW (Aligned with Landing & Dashboard)
    ============================================================ */
 :root {
-  --bg: #FAF9F6;
+  --bg: #F7F7F5;
   --surface: #FFFFFF;
-  --surface-muted: #FBFAF7;
-  --border: #E7E5E0;
+  --surface-muted: #F1F0EC;
+  --border: #E5E4DE;
   --border-strong: #D9D6CF;
 
-  --text-primary: #171614;
-  --text-secondary: #6B6862;
-  --text-muted: #A6A29A;
+  --text-primary: #111111;
+  --text-secondary: #666666;
+  --text-muted: #999999;
 
-  /* Subtle pastel accents — used sparingly for cards/status/highlights only */
+  /* Pastel accents aligned with landing.css & dashboard.css */
   --accent-lavender: #EFEAFB;
   --accent-lavender-text: #6B4FBB;
-  --accent-cyan: #E7F7FA;
-  --accent-cyan-text: #1F7A8C;
+  --accent-cyan: #DCEFF3;
+  --accent-cyan-text: #1B6A7E;
   --accent-mint: #EAF7F0;
   --accent-mint-text: #2F7D5A;
-  --accent-blue: #EDF3FD;
-  --accent-blue-text: #3A5FA0;
+  --accent-blue: #DCEFF3;
+  --accent-blue-text: #1B6A7E;
 
-  /* Status semantics kept, softened to match pastel language */
+  /* Status semantics */
   --normal-bg: #EAF7F0;
   --normal-text: #2F7D5A;
   --review-bg: #FBF2E4;
@@ -30,8 +30,8 @@
   --fraud-bg: #FBEBEC;
   --fraud-text: #B23A44;
 
-  --accent-dark: #171614;
-  --accent-dark-hover: #2E2C29;
+  --accent-dark: #0A0A0A;
+  --accent-dark-hover: #262626;
 
   --font-display: 'Source Serif 4', Georgia, serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -39,11 +39,11 @@
 
   --radius-sm: 10px;
   --radius: 14px;
-  --radius-lg: 18px;
+  --radius-lg: 20px;
 
-  --shadow-sm: 0 1px 2px rgba(23, 22, 20, 0.04);
-  --shadow-md: 0 6px 20px rgba(23, 22, 20, 0.06);
-  --shadow-lg: 0 20px 50px rgba(23, 22, 20, 0.08);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.08);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -58,7 +58,7 @@ body {
   background: var(--bg);
   color: var(--text-primary);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 14.5px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
@@ -81,7 +81,7 @@ a { color: inherit; text-decoration: none; }
 a:hover { color: var(--text-primary); }
 
 button:focus-visible, a:focus-visible, input:focus-visible {
-  outline: 2px solid var(--accent-lavender-text);
+  outline: 2px solid var(--accent-cyan-text);
   outline-offset: 2px;
 }
 
@@ -109,22 +109,22 @@ svg { display: block; flex-shrink: 0; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 20px;
+  padding: 18px 24px;
   border-bottom: 1px solid var(--border);
-  background: rgba(250, 249, 246, 0.92);
-  backdrop-filter: blur(6px);
+  background: rgba(247, 247, 245, 0.9);
+  backdrop-filter: blur(20px);
 }
-.navbar .brand { font-family: var(--font-display); font-size: 19px; font-weight: 500; letter-spacing: -0.01em; }
+.navbar .brand { font-family: var(--font-display); font-size: 18px; font-weight: 500; letter-spacing: -0.01em; }
 .navbar nav { display: none; }
 @media (min-width: 900px) {
   .navbar { padding: 18px 32px; }
-  .navbar nav { display: flex; gap: 32px; font-size: 13px; letter-spacing: 0.02em; text-transform: uppercase; color: var(--text-secondary); }
+  .navbar nav { display: flex; gap: 32px; font-size: 12.5px; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-secondary); font-weight: 600; }
   .navbar nav a { transition: color 0.15s ease; }
   .navbar nav a:hover { color: var(--text-primary); }
 }
 
 /* ============================================================
-   SIMPLE CENTERED AUTH LAYOUT (no marketing panel)
+   AUTH SHELL
    ============================================================ */
 .auth-shell {
   position: relative;
@@ -136,7 +136,6 @@ svg { display: block; flex-shrink: 0; }
   padding: 32px 20px;
   background:
     radial-gradient(700px 420px at 12% 0%, var(--accent-blue) 0%, transparent 55%),
-    radial-gradient(600px 380px at 100% 100%, var(--accent-lavender) 0%, transparent 50%),
     var(--bg);
 }
 
@@ -173,8 +172,8 @@ svg { display: block; flex-shrink: 0; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  padding: 32px 28px;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
+  padding: 36px 32px;
 }
 @media (min-width: 480px) { .auth-card { padding: 40px 36px; } }
 
@@ -187,6 +186,7 @@ svg { display: block; flex-shrink: 0; }
   margin: 22px 0;
   color: var(--text-muted);
   font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  font-weight: 600;
 }
 .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
 
@@ -197,43 +197,33 @@ svg { display: block; flex-shrink: 0; }
 }
 
 /* ============================================================
-   CARDS (general purpose)
+   CARDS & BUTTONS
    ============================================================ */
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-sm); }
 .card + .card { margin-top: 16px; }
 
-.metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow-sm); }
-.metric-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin-bottom: 4px; }
-.metric-card .value { font-family: var(--font-mono); font-size: 22px; font-weight: 600; }
+.metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow-sm); }
+.metric-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; }
+.metric-card .value { font-family: var(--font-mono); font-size: 24px; font-weight: 600; }
 
-/* ============================================================
-   BUTTONS
-   NOTE: scoped to .btn only (was previously "button, .btn"). The
-   old bare-"button" selector applied width:100%, padding:12px 20px
-   and flex centering to EVERY <button> on the page, including ones
-   from newer Tailwind-based templates that don't use this class
-   system. That silently overlaid/hid inputs sitting next to those
-   buttons (e.g. the password show/hide toggle). Any button that
-   wants these styles must now explicitly carry class="btn ...".
-   ============================================================ */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  border: none; border-radius: var(--radius-sm);
+  border: none; border-radius: 12px;
   padding: 12px 20px;
   font-family: var(--font-body); font-size: 14px; font-weight: 500;
   cursor: pointer; width: 100%;
-  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
 }
 
 .btn-primary { background: var(--accent-dark); color: #fff; }
-.btn-primary:hover { background: var(--accent-dark-hover); }
+.btn-primary:hover { background: var(--accent-dark-hover); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2); }
 .btn-primary:active { transform: translateY(1px); }
-.btn-primary:disabled { background: var(--text-muted); cursor: not-allowed; transform: none; }
+.btn-primary:disabled { background: var(--text-muted); cursor: not-allowed; transform: none; box-shadow: none; }
 .btn-primary .arrow { transition: transform 0.15s ease; }
 .btn-primary:hover .arrow { transform: translateX(3px); }
 
-.btn-secondary { background: var(--surface); border: 1px solid var(--border-strong); color: var(--text-primary); }
-.btn-secondary:hover { border-color: var(--text-secondary); background: var(--surface-muted); }
+.btn-secondary { background: var(--surface); border: 1px solid var(--border); color: var(--text-primary); }
+.btn-secondary:hover { border-color: #A3A299; background: var(--surface-muted); }
 
 @media (min-width: 900px) { .btn { width: auto; } }
 .auth-card .btn, .auth-card .actions-row .btn { width: 100%; }
@@ -244,7 +234,7 @@ svg { display: block; flex-shrink: 0; }
    FORMS
    ============================================================ */
 .field { margin-bottom: 18px; }
-.field label { display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 7px; }
+.field label { display: block; font-size: 11.5px; font-weight: 600; color: var(--text-secondary); margin-bottom: 7px; text-transform: uppercase; letter-spacing: 0.05em; }
 
 .input-icon-wrap { position: relative; }
 .input-icon-wrap .field-icon {
@@ -258,31 +248,32 @@ svg { display: block; flex-shrink: 0; }
   width: 32px; height: 32px; padding: 0;
   background: transparent; border: none; color: var(--text-muted);
   display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; cursor: pointer;
 }
 .input-icon-wrap .toggle-visibility:hover { color: var(--text-primary); }
 
 .field input, .field select {
   width: 100%; padding: 12px 14px;
-  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
-  font-size: 15px; font-family: var(--font-body);
-  background: var(--surface); color: var(--text-primary);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid var(--border); border-radius: 12px;
+  font-size: 14.5px; font-family: var(--font-body);
+  background: #F7F7F5; color: var(--text-primary);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 .field input:focus, .field select:focus {
-  outline: none; border-color: var(--accent-lavender-text);
-  box-shadow: 0 0 0 3px rgba(107, 79, 187, 0.1);
+  outline: none; border-color: var(--accent-cyan-text); background: var(--surface);
+  box-shadow: 0 0 0 3px rgba(27, 106, 126, 0.12);
 }
 
 .error-text {
   background: var(--fraud-bg); color: var(--fraud-text);
-  font-size: 13px; padding: 10px 12px; border-radius: var(--radius-sm);
-  margin-top: -4px; margin-bottom: 16px;
+  font-size: 13px; padding: 10px 12px; border-radius: 10px;
+  margin-top: -4px; margin-bottom: 16px; border: 1px solid rgba(178, 58, 68, 0.15);
 }
 
 /* ============================================================
    STATUS CHIPS
    ============================================================ */
-.chip { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; }
+.chip { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.02em; }
 .chip-normal { background: var(--normal-bg); color: var(--normal-text); }
 .chip-review { background: var(--review-bg); color: var(--review-text); }
 .chip-fraud  { background: var(--fraud-bg); color: var(--fraud-text); }
@@ -299,6 +290,7 @@ svg { display: block; flex-shrink: 0; }
 .actions-row { display: flex; flex-direction: column; gap: 12px; }
 .actions-row .btn { width: 100%; text-align: center; }
 @media (min-width: 480px) { .actions-row { flex-direction: row; } .actions-row .btn { width: auto; flex: 1; } }
+
 /* ============================================================
    MULTI-STEP AUTH (signup → OTP)
    ============================================================ */
@@ -313,7 +305,7 @@ svg { display: block; flex-shrink: 0; }
   width: 24px;
   height: 4px;
   border-radius: 999px;
-  background: var(--border-strong);
+  background: var(--border);
   transition: background-color 0.25s ease, width 0.25s ease;
 }
 .step-dot.active { background: var(--accent-dark); width: 32px; }
@@ -324,14 +316,14 @@ svg { display: block; flex-shrink: 0; }
 }
 .auth-step { animation: auth-step-in 0.3s ease; }
 
-.field-row { display: flex; gap: 12px; }
+.field-row { display: flex; gap: 14px; }
 .field-row .field { flex: 1; margin-bottom: 18px; }
 @media (max-width: 420px) { .field-row { flex-direction: column; gap: 0; } }
 
 .otp-input {
   text-align: center;
   font-family: var(--font-mono);
-  font-size: 22px;
+  font-size: 24px;
   letter-spacing: 0.5em;
   padding-left: 14px !important;
 }

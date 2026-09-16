@@ -3,6 +3,10 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="/static/css/dashboard.css">
+<style>
+  .fade-up { opacity: 0; transform: translateY(16px); transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+  .fade-up.in { opacity: 1; transform: none; }
+</style>
 {% endblock %}
 
 {% block navbar %}
@@ -13,27 +17,39 @@
 <div class="dash-body">
   <div class="dash-wrap">
 
-    <div class="dash-header">
+    <div class="dash-header fade-up in">
       <div>
-        <h1>Uploads</h1>
-        <p>Batch-score a transaction CSV and review past jobs.</p>
+        <span class="inline-block text-[10px] font-bold tracking-widest uppercase text-neutral-400 mb-1.5 bg-white px-3 py-1 rounded-full border border-[#E5E4DE] shadow-2xs">Batch Processing Pipeline</span>
+        <h1>Uploads & Batch Scans</h1>
+        <p>Batch-score transaction CSV files through the ML ensemble and review past investigation jobs.</p>
       </div>
     </div>
 
-    <div class="dash-upload-drop" id="drop-zone">
-      <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v3M16 4v3"/></svg></div>
+    <!-- Drag & Drop Zone -->
+    <div class="dash-upload-drop fade-up in transition-all duration-300 hover:shadow-hover-card hover:-translate-y-1" id="drop-zone">
+      <div class="icon transition-transform duration-300">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v3M16 4v3"/></svg>
+      </div>
       <p>Drag a CSV here, or choose a file — column mapping happens automatically.</p>
-      <label for="file-input" class="dash-btn dash-btn-outline" style="cursor:pointer;">Choose CSV<input type="file" id="file-input" accept=".csv"></label>
+      <label for="file-input" class="dash-btn dash-btn-outline cursor-pointer hover:border-neutral-400 transition-all">
+        Choose CSV
+        <input type="file" id="file-input" accept=".csv">
+      </label>
       <div id="selected-file" style="margin-top:12px; font-size:12.5px; color: var(--text-secondary);"></div>
-      <div id="upload-actions" style="margin-top:14px; display:none;">
-        <button id="upload-submit" class="dash-btn dash-btn-dark">Upload &amp; Score →</button>
+      <div id="upload-actions" style="margin-top:16px; display:none;">
+        <button id="upload-submit" class="dash-btn dash-btn-dark group">
+          <span>Upload &amp; Score</span>
+          <span class="transition-transform duration-300 group-hover:translate-x-1">→</span>
+        </button>
       </div>
     </div>
 
     <div id="confirm-banner"></div>
 
-    <div class="dash-panel">
-      <div class="dash-panel-head"><h3>Job History</h3></div>
+    <div class="dash-panel fade-up in">
+      <div class="dash-panel-head">
+        <h3>Job History</h3>
+      </div>
       <div id="jobs-table">
         <div class="dash-skeleton"></div>
         <div class="dash-skeleton"></div>
@@ -87,14 +103,12 @@
     if (!chosenFile) return;
     const btn = document.getElementById("upload-submit");
     btn.disabled = true;
-    btn.textContent = "Uploading...";
+    btn.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Uploading...`;
 
     const formData = new FormData();
     formData.append("file", chosenFile);
 
     try {
-      // ==== ADAPT HERE: confirm this matches routes/predict_file.py's
-      // POST /predict/file — field name for the file part may differ. ====
       const res = await fetch("/predict/file", { method: "POST", credentials: "include", body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || data.message || "Upload failed.");
@@ -120,14 +134,13 @@
       alert(err.message);
     } finally {
       btn.disabled = false;
-      btn.textContent = "Upload & Score →";
+      btn.innerHTML = '<span>Upload &amp; Score</span> <span class="transition-transform duration-300 group-hover:translate-x-1">→</span>';
     }
   });
 
   async function confirmProceed() {
     if (!pendingJobId) return;
     try {
-      // ==== ADAPT HERE: confirm POST /predict/file/{job_id}/confirm body shape ====
       const res = await fetch(`/predict/file/${pendingJobId}/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -144,7 +157,6 @@
 
   async function loadJobs() {
     try {
-      // ==== ADAPT HERE: confirm GET /uploads returns an array (or {jobs:[...]}) ====
       const res = await fetch("/uploads", { credentials: "include" });
       const data = await res.json();
       const jobs = Array.isArray(data) ? data : pick(data, ["jobs", "uploads"], []);

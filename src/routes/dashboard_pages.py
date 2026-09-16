@@ -55,3 +55,14 @@ def dashboard_job_detail(request: Request, job_id: str):
         request=request, name="dashboard_job.html",
         context={"active_tab": "uploads", "user": user, "job_id": job_id},
     )
+
+
+@router.get("/dashboard/history")
+def dashboard_history(request: Request):
+    user = _require_user(request)
+    if not user:
+        return RedirectResponse(url="/login")
+    return templates.TemplateResponse(
+        request=request, name="dashboard_history.html",
+        context={"active_tab": "history", "user": user},
+    )

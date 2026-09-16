@@ -5,6 +5,8 @@
 <link rel="stylesheet" href="/static/css/dashboard.css">
 <style>
   .dash-form label .req { color: var(--fraud-text); margin-left: 2px; }
+  .fade-up { opacity: 0; transform: translateY(16px); transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+  .fade-up.in { opacity: 1; transform: none; }
 </style>
 {% endblock %}
 
@@ -16,14 +18,15 @@
 <div class="dash-body">
   <div class="dash-wrap">
 
-    <div class="dash-header">
+    <div class="dash-header fade-up in">
       <div>
+        <span class="inline-block text-[10px] font-bold tracking-widest uppercase text-neutral-400 mb-1.5 bg-white px-3 py-1 rounded-full border border-[#E5E4DE] shadow-2xs">Live Risk Scoring</span>
         <h1>Check a Transaction</h1>
-        <p>Score a single transaction through the ML ensemble and fund-flow graph.</p>
+        <p>Score a single transaction through the ML ensemble and fund-flow graph network.</p>
       </div>
     </div>
 
-    <div class="dash-check-grid">
+    <div class="dash-check-grid fade-up in">
       <div class="dash-panel">
         <div class="dash-panel-head"><h3>Transaction Details</h3></div>
         <form id="check-form" class="dash-form">
@@ -89,7 +92,10 @@
 
           <div id="check-error" class="dash-mapping-note" style="display:none; background: var(--fraud-bg); color: var(--fraud-text);"></div>
 
-          <button type="submit" id="check-submit" class="dash-btn dash-btn-dark" style="width:100%; margin-top:10px;">Score Transaction →</button>
+          <button type="submit" id="check-submit" class="dash-btn dash-btn-dark group" style="width:100%; margin-top:10px;">
+            <span>Score Transaction</span>
+            <span class="transition-transform duration-300 group-hover:translate-x-1">→</span>
+          </button>
         </form>
       </div>
 
@@ -117,7 +123,6 @@
     return "normal";
   }
 
-  // ---- Populate Hour dropdown (00:00 .. 23:00), default = 0 ----
   const hourSelect = document.getElementById("hour");
   for (let h = 0; h < 24; h++) {
     const opt = document.createElement("option");
@@ -126,16 +131,13 @@
     hourSelect.appendChild(opt);
   }
 
-  // ---- Default the date picker to today, so day/day_of_week always
-  // have a sensible value without the user having to think about it ----
   const dateInput = document.getElementById("txn_date");
   dateInput.valueAsDate = new Date();
 
   function computeDayFields(dateStr) {
     const d = dateStr ? new Date(dateStr + "T00:00:00") : new Date();
-    // JS getDay(): 0=Sun..6=Sat. Convert to 0=Mon..6=Sun to match the backend.
     const day_of_week = (d.getDay() + 6) % 7;
-    const day = Math.floor(d.getTime() / 86400000); // consistent same-day grouping key
+    const day = Math.floor(d.getTime() / 86400000);
     return { day_of_week, day };
   }
 
@@ -158,7 +160,7 @@
     e.preventDefault();
     checkError.style.display = "none";
     checkSubmit.disabled = true;
-    checkSubmit.textContent = "Scoring...";
+    checkSubmit.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Scoring...`;
 
     const { day_of_week, day } = computeDayFields(dateInput.value);
     const accountTypeVal = document.getElementById("account_type").value;
@@ -222,7 +224,7 @@
       checkError.style.display = "block";
     } finally {
       checkSubmit.disabled = false;
-      checkSubmit.textContent = "Score Transaction →";
+      checkSubmit.innerHTML = '<span>Score Transaction</span> <span class="transition-transform duration-300 group-hover:translate-x-1">→</span>';
     }
   });
 </script>

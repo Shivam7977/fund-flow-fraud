@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}History — Fund Flow{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="/static/css/dashboard.css">
+<style>
+  .fade-up { opacity: 0; transform: translateY(16px); transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+  .fade-up.in { opacity: 1; transform: none; }
+</style>
+{% endblock %}
+
+{% block navbar %}
+{% include "partials/dashboard_nav.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="dash-body">
+  <div class="dash-wrap">
+
+    <div class="dash-header fade-up in">
+      <div>
+        <span class="inline-block text-[10px] font-bold tracking-widest uppercase text-neutral-400 mb-1.5 bg-white px-3 py-1 rounded-full border border-[#E5E4DE] shadow-2xs">Audit Logs & Jobs</span>
+        <h1>History</h1>
+        <p>Complete historical archive of your past batch-scoring and graph intelligence jobs.</p>
+      </div>
+    </div>
+
+    <div class="dash-panel fade-up in">
+      <div class="dash-panel-head">
+        <h3>All Jobs</h3>
+        <a href="/dashboard/uploads" class="group inline-flex items-center gap-1">Upload new CSV <span class="transition-transform duration-300 group-hover:translate-x-1">→</span></a>
+      </div>
+      <div id="history-table">
+        <div class="dash-skeleton"></div>
+        <div class="dash-skeleton"></div>
+        <div class="dash-skeleton"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function pick(obj, keys, fallback) {
+    for (const k of keys) { if (obj && obj[k] !== undefined && obj[k] !== null) return obj[k]; }
+    return fallback;
+  }
+  function badgeClass(status) {
+    const s = (status || "").toString().toLowerCase();
+    if (s.includes("fail")) return "fraud";
+    if (s.includes("pending")) return "review";
+    if (s.includes("done") || s.includes("complete")) return "normal";
+    return "neutral";
+  }
+  function fmtTime(v) {
+    if (!v) return "";
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? String(v) : d.toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  }
+
+  async function loadHistory() {
+    try {
+      const res = await fetch("/uploads", { credentials: "include" });
+      const container = document.getElementById("history-table");
+      if (!res.ok) {
+        container.innerHTML = `<div class="dash-empty">Sign up (not guest) to see job history.</div>`;
+        return;
+      }
+      const data = await res.json();
+      const jobs = Array.isArray(data) ? data : pick(data, ["jobs", "uploads"], []);
+
+      if (!jobs.length) {
+        container.innerHTML = `<div class="dash-empty">No jobs yet — upload a CSV to get started.</div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <table class="dash-table">
+          <thead><tr><th>File</th><th>Status</th><th>Rows</th><th>Uploaded</th></tr></thead>
+          <tbody>
+            ${jobs.map((j) => {
+              const id = pick(j, ["job_id", "id"], "");
+              const filename = pick(j, ["filename", "file_name"], "transactions.csv");
+              const status = pick(j, ["status"], "processing");
+              const rows = pick(j, ["total_rows", "row_count"], "—");
+              const created = pick(j, ["created_at", "timestamp"], "");
+              return `
+                <tr class="clickable" onclick="window.location='/dashboard/uploads/${id}'">
+                  <td><div class="fname">${filename}</div><div class="fmeta">${id}</div></td>
+                  <td><span class="dash-badge ${badgeClass(status)}">${status.toString().toUpperCase()}</span></td>
+                  <td>${rows}</td>
+                  <td>${fmtTime(created)}</td>
+                </tr>`;
+            }).join("")}
+          </tbody>
+        </table>`;
+    } catch (err) {
+      document.getElementById("history-table").innerHTML = `<div class="dash-empty">Couldn't load job history.</div>`;
+      console.error(err);
+    }
+  }
+
+  loadHistory();
+</script>
+{% endblock %}

@@ -1,34 +1,106 @@
-<header class="dash-nav">
-  <div class="dash-nav-inner">
+<aside class="dash-sidebar" id="dash-sidebar">
+  <div class="dash-sidebar-top">
     <a href="/dashboard" class="dash-brand">
       <span class="mark"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V5l-8-3Z"/></svg></span>
       Fund Flow
     </a>
-    <nav class="dash-tabs">
-      <a href="/dashboard" class="dash-tab {{ 'active' if active_tab == 'overview' else '' }}">Overview</a>
-      <a href="/dashboard/check" class="dash-tab {{ 'active' if active_tab == 'check' else '' }}">Check Transaction</a>
-      <a href="/dashboard/uploads" class="dash-tab {{ 'active' if active_tab == 'uploads' else '' }}">Uploads</a>
-    </nav>
-    <div class="dash-nav-right">
-      <button type="button" id="dash-logout-btn" class="dash-logout" style="background:none; border:none; padding:0; cursor:pointer; font-family: inherit; width:auto;">Log out</button>
+    <button type="button" class="dash-sidebar-close" id="dash-sidebar-close" aria-label="Close menu">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+  </div>
+
+  <nav class="dash-sidebar-nav">
+    <a href="/dashboard" class="dash-side-link {{ 'active' if active_tab == 'overview' else '' }}">
+      <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>
+      Overview
+    </a>
+    <a href="/dashboard/check" class="dash-side-link {{ 'active' if active_tab == 'check' else '' }}">
+      <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V5l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+      Transaction Check
+    </a>
+    <a href="/dashboard/uploads" class="dash-side-link {{ 'active' if active_tab == 'uploads' else '' }}">
+      <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v3M16 4v3"/></svg></span>
+      Upload
+    </a>
+    <a href="/dashboard/history" class="dash-side-link {{ 'active' if active_tab == 'history' else '' }}">
+      <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
+      History
+    </a>
+  </nav>
+
+  <div class="dash-sidebar-bottom">
+    <button type="button" class="dash-profile-trigger" id="dash-profile-trigger">
+      <span class="avatar">{{ (user.name[0] if user.name else 'G') | upper }}</span>
+      <span class="who">
+        <span class="name">{{ user.name if user.name else 'Guest' }}</span>
+        <span class="sub">{{ user.email if user.email else 'Guest session' }}</span>
+      </span>
+      <span class="chev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></span>
+    </button>
+    <div class="dash-profile-menu" id="dash-profile-menu">
+      {% if user.guest %}
+        <a href="/login" class="dash-profile-item primary" style="text-align:center;">Log in</a>
+        <a href="/signup" class="dash-profile-item" style="text-align:center;">Sign up</a>
+      {% else %}
+        <button type="button" id="dash-logout-btn" class="dash-profile-item danger">Log out</button>
+      {% endif %}
     </div>
   </div>
+</aside>
+
+<div class="dash-sidebar-backdrop" id="dash-sidebar-backdrop"></div>
+
+<header class="dash-mobile-topbar">
+  <button type="button" id="dash-sidebar-open" class="dash-hamburger" aria-label="Open menu">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <a href="/dashboard" class="dash-brand">
+    <span class="mark"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V5l-8-3Z"/></svg></span>
+    Fund Flow
+  </a>
 </header>
-<div class="dash-tabs-mobile">
-  <a href="/dashboard" class="dash-tab {{ 'active' if active_tab == 'overview' else '' }}">Overview</a>
-  <a href="/dashboard/check" class="dash-tab {{ 'active' if active_tab == 'check' else '' }}">Check</a>
-  <a href="/dashboard/uploads" class="dash-tab {{ 'active' if active_tab == 'uploads' else '' }}">Uploads</a>
-</div>
 
 <script>
-  // /auth/logout is a POST endpoint (routes.py: @router.post("/logout")) —
-  // a plain <a href> would only ever GET it and 405. Fetch POST, then redirect.
-  document.getElementById("dash-logout-btn").addEventListener("click", async () => {
-    try {
-      await fetch("/auth/logout", { method: "POST", credentials: "include" });
-    } catch (err) {
-      console.error(err);
+  (function () {
+    const sidebar = document.getElementById("dash-sidebar");
+    const backdrop = document.getElementById("dash-sidebar-backdrop");
+    const openBtn = document.getElementById("dash-sidebar-open");
+    const closeBtn = document.getElementById("dash-sidebar-close");
+    const profileTrigger = document.getElementById("dash-profile-trigger");
+    const profileMenu = document.getElementById("dash-profile-menu");
+
+    function openSidebar() { sidebar.classList.add("open"); backdrop.classList.add("open"); }
+    function closeSidebar() { sidebar.classList.remove("open"); backdrop.classList.remove("open"); }
+
+    if (openBtn) openBtn.addEventListener("click", openSidebar);
+    if (closeBtn) closeBtn.addEventListener("click", closeSidebar);
+    if (backdrop) backdrop.addEventListener("click", closeSidebar);
+
+    if (profileTrigger && profileMenu) {
+      profileTrigger.addEventListener("click", (e) => {
+        e.stopPropagation();
+        profileMenu.classList.toggle("open");
+        profileTrigger.classList.toggle("open");
+      });
+      document.addEventListener("click", (e) => {
+        if (!profileMenu.contains(e.target) && !profileTrigger.contains(e.target)) {
+          profileMenu.classList.remove("open");
+          profileTrigger.classList.remove("open");
+        }
+      });
     }
-    window.location.href = "/login";
-  });
+
+    // /auth/logout is a POST endpoint — a plain <a href> would 405 on GET.
+    const logoutBtn = document.getElementById("dash-logout-btn");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", async () => {
+        try {
+          await fetch("/auth/logout", { method: "POST", credentials: "include" });
+        } catch (err) {
+          console.error(err);
+        }
+        window.location.href = "/login";
+      });
+    }
+  })();
 </script>
