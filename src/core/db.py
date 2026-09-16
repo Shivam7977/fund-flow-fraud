@@ -1,17 +1,70 @@
+import time
 import psycopg2
 import psycopg2.extras
+import psycopg2.pool
 from datetime import datetime, timezone
 from config import settings
 
+# ============================================================
+# Connection pooling
+# ------------------------------------------------------------
+# Pehle har function apna khud ka psycopg2.connect() karta tha —
+# har query = ek naya TCP+SSL handshake Aiven tak. Batch CSV upload
+# mein (process_file_job -> save_prediction per row) ye sainkdon
+# fresh connections back-to-back khol raha tha, aur Aiven beech mein
+# hi SSL drop kar deta tha ("SSL error: unexpected eof while reading").
+#
+# Fix: ek ThreadedConnectionPool (FastAPI BackgroundTasks thread-pool
+# mein chalte hain, isliye Threaded-safe pool chahiye) jo connections
+# reuse karta hai. get_connection() pool se leta hai, release_connection()
+# wapas pool mein daalta hai (band nahi karta) — asli close sirf pool
+# khud internally karta hai jab zaroorat ho.
+# ============================================================
 
-def get_connection():
+_pool = None
+
+
+def _get_pool():
+    global _pool
+    if _pool is None:
+        _pool = psycopg2.pool.ThreadedConnectionPool(
+            minconn=1,
+            maxconn=10,
+            dsn=settings.DATABASE_URL,
+        )
+    return _pool
+
+
+def get_connection(retries: int = 3, delay: float = 0.5):
     """
-    Naya connection deta hai. Postgres mein bhi har request ke liye
-    naya connection lena simple aur safe hai (abhi ke liye — baad mein
-    pooling chahiye to psycopg2.pool ya SQLAlchemy add kar sakte hain).
+    Pool se connection leta hai. Transient network/SSL blips ke liye
+    chhota retry-with-backoff bhi hai — Aiven jaisi managed DB par
+    occasional handshake drop normal hai, isliye ek retry se hi
+    zyadatar cases handle ho jaate hain.
     """
-    conn = psycopg2.connect(settings.DATABASE_URL)
-    return conn
+    last_err = None
+    for attempt in range(retries):
+        try:
+            return _get_pool().getconn()
+        except psycopg2.OperationalError as e:
+            last_err = e
+            if attempt < retries - 1:
+                time.sleep(delay * (attempt + 1))
+    raise last_err
+
+
+def release_connection(conn):
+    """conn.close() ki jagah ye use karo — connection pool mein wapas chala jaata hai, band nahi hota."""
+    if conn is None:
+        return
+    try:
+        _get_pool().putconn(conn)
+    except Exception:
+        # Pool already closed ya conn kisi wajah se corrupt — safe fallback.
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 def _dict_cursor(conn):
@@ -118,7 +171,7 @@ def init_db():
 
     conn.commit()
     cur.close()
-    conn.close()
+    release_connection(conn)
 
 
 def now_iso():
@@ -140,7 +193,7 @@ def save_prediction(user_id, nameOrig, nameDest, amount_inr, hour, day,
           ml_score, graph_score, final_score, risk_level, now_iso(), job_id))
     conn.commit()
     cur.close()
-    conn.close()
+    release_connection(conn)
 
 
 def get_account_history(account_id):
@@ -153,7 +206,7 @@ def get_account_history(account_id):
     """, (account_id, account_id))
     rows = cur.fetchall()
     cur.close()
-    conn.close()
+    release_connection(conn)
     return [dict(row) for row in rows]
 
 
@@ -163,7 +216,7 @@ def get_predictions_by_job(job_id):
     cur.execute('SELECT * FROM predictions WHERE job_id = %s ORDER BY predicted_at', (job_id,))
     rows = cur.fetchall()
     cur.close()
-    conn.close()
+    release_connection(conn)
     return [dict(row) for row in rows]
 
 
@@ -176,7 +229,7 @@ def get_activity_summary(user_id):
     """, (user_id,))
     rows = cur.fetchall()
     cur.close()
-    conn.close()
+    release_connection(conn)
     counts = {row["risk_level"]: row["count"] for row in rows}
     return {"total_predictions": sum(counts.values()), "by_risk_level": counts}
 
@@ -193,7 +246,7 @@ def create_job(job_id, user_id=None, filename=None, file_path=None,
     """, (job_id, user_id, status, filename, file_path, column_mapping, total_rows, now_iso()))
     conn.commit()
     cur.close()
-    conn.close()
+    release_connection(conn)
 
 
 def update_job(job_id, status, result_summary=None, error_message=None):
@@ -206,7 +259,7 @@ def update_job(job_id, status, result_summary=None, error_message=None):
     """, (status, result_summary, error_message, now_iso(), job_id))
     conn.commit()
     cur.close()
-    conn.close()
+    release_connection(conn)
 
 
 def update_job_mapping(job_id, column_mapping_json):
@@ -216,7 +269,7 @@ def update_job_mapping(job_id, column_mapping_json):
     cur.execute("UPDATE jobs SET column_mapping = %s WHERE job_id = %s", (column_mapping_json, job_id))
     conn.commit()
     cur.close()
-    conn.close()
+    release_connection(conn)
 
 
 def get_job(job_id):
@@ -225,7 +278,7 @@ def get_job(job_id):
     cur.execute("SELECT * FROM jobs WHERE job_id = %s", (job_id,))
     row = cur.fetchone()
     cur.close()
-    conn.close()
+    release_connection(conn)
     return dict(row) if row else None
 
 
@@ -235,7 +288,7 @@ def get_jobs_by_user(user_id):
     cur.execute("SELECT * FROM jobs WHERE user_id = %s ORDER BY created_at DESC", (user_id,))
     rows = cur.fetchall()
     cur.close()
-    conn.close()
+    release_connection(conn)
     return [dict(row) for row in rows]
 
 
@@ -254,7 +307,7 @@ def create_pending_signup(email, name, username, password_hash, otp):
     """, (email, name, username, password_hash, otp, now_iso()))
     conn.commit()
     cur.close()
-    conn.close()
+    release_connection(conn)
 
 
 def get_pending_signup(email):
@@ -263,7 +316,7 @@ def get_pending_signup(email):
     cur.execute("SELECT * FROM pending_signups WHERE email = %s", (email,))
     row = cur.fetchone()
     cur.close()
-    conn.close()
+    release_connection(conn)
     return dict(row) if row else None
 
 
@@ -273,7 +326,7 @@ def delete_pending_signup(email):
     cur.execute("DELETE FROM pending_signups WHERE email = %s", (email,))
     conn.commit()
     cur.close()
-    conn.close()
+    release_connection(conn)
 
 
 def create_user(name, email, username, password_hash, auth_provider="password", is_verified=1):
@@ -285,7 +338,7 @@ def create_user(name, email, username, password_hash, auth_provider="password", 
     """, (name, email, username, password_hash, auth_provider, is_verified, now_iso()))
     conn.commit()
     cur.close()
-    conn.close()
+    release_connection(conn)
 
 
 def get_user_by_email(email):
@@ -294,7 +347,7 @@ def get_user_by_email(email):
     cur.execute("SELECT * FROM users WHERE email = %s", (email,))
     row = cur.fetchone()
     cur.close()
-    conn.close()
+    release_connection(conn)
     return dict(row) if row else None
 
 
@@ -304,7 +357,7 @@ def update_user_auth_provider(email, new_provider):
     cur.execute("UPDATE users SET auth_provider = %s WHERE email = %s", (new_provider, email))
     conn.commit()
     cur.close()
-    conn.close()
+    release_connection(conn)
 
 
 def init_sessions_table():
@@ -322,7 +375,7 @@ def init_sessions_table():
     """)
     conn.commit()
     cur.close()
-    conn.close()
+    release_connection(conn)
 
 
 def create_session(session_id, user_id, expires_at):
@@ -334,7 +387,7 @@ def create_session(session_id, user_id, expires_at):
     """, (session_id, user_id, now_iso(), expires_at))
     conn.commit()
     cur.close()
-    conn.close()
+    release_connection(conn)
 
 
 def get_session(session_id):
@@ -343,7 +396,7 @@ def get_session(session_id):
     cur.execute("SELECT * FROM sessions WHERE session_id = %s", (session_id,))
     row = cur.fetchone()
     cur.close()
-    conn.close()
+    release_connection(conn)
     return dict(row) if row else None
 
 
@@ -353,7 +406,7 @@ def delete_session(session_id):
     cur.execute("DELETE FROM sessions WHERE session_id = %s", (session_id,))
     conn.commit()
     cur.close()
-    conn.close()
+    release_connection(conn)
 
 
 def get_user_by_id(user_id):
@@ -362,5 +415,5 @@ def get_user_by_id(user_id):
     cur.execute("SELECT * FROM users WHERE id = %s", (user_id,))
     row = cur.fetchone()
     cur.close()
-    conn.close()
+    release_connection(conn)
     return dict(row) if row else None
