@@ -26,8 +26,29 @@ def signup_page(request: Request):
 def login_page(request: Request):
     return templates.TemplateResponse(request=request, name="login.html")
 
+
+@router.get("/forgot-password")
+def forgot_password_page(request: Request):
+    return templates.TemplateResponse(request=request, name="forgot_password.html")
+
+
+@router.get("/reset-password")
+def reset_password_page(request: Request):
+    # Token query param JS se URLSearchParams se padha jaata hai
+    # (window.location.search), isliye yahan context mein pass
+    # karne ki zaroorat nahi.
+    return templates.TemplateResponse(request=request, name="reset_password.html")
+
+
 @router.get("/dashboard")
 def dashboard_page(request: Request):
+    """
+    NOTE: dashboard_pages.py mein bhi ek /dashboard route hai — dono
+    routers app.py mein include hote hain to jo pehle include hota hai
+    wahi actually serve karega, ye doosra silently unreachable ho jaata
+    hai. Dono mein no-store header laga diya hai taaki jo bhi active ho,
+    logout ke baad bfcache se stale dashboard na dikhe.
+    """
     user = get_current_user(request)
 
     if user is None:
@@ -35,7 +56,7 @@ def dashboard_page(request: Request):
 
     is_guest = user.get("guest") is True
 
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request=request,
         name="dashboard.html",
         context={
@@ -43,3 +64,6 @@ def dashboard_page(request: Request):
             "is_guest": is_guest,
         },
     )
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    return response

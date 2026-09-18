@@ -9,16 +9,11 @@ from config import settings
 # Connection pooling
 # ------------------------------------------------------------
 # Pehle har function apna khud ka psycopg2.connect() karta tha —
-# har query = ek naya TCP+SSL handshake Aiven tak. Batch CSV upload
-# mein (process_file_job -> save_prediction per row) ye sainkdon
-# fresh connections back-to-back khol raha tha, aur Aiven beech mein
-# hi SSL drop kar deta tha ("SSL error: unexpected eof while reading").
-#
-# Fix: ek ThreadedConnectionPool (FastAPI BackgroundTasks thread-pool
-# mein chalte hain, isliye Threaded-safe pool chahiye) jo connections
-# reuse karta hai. get_connection() pool se leta hai, release_connection()
-# wapas pool mein daalta hai (band nahi karta) — asli close sirf pool
-# khud internally karta hai jab zaroorat ho.
+# har query = ek naya TCP+SSL handshake Aiven tak. Ab ek
+# ThreadedConnectionPool (FastAPI BackgroundTasks thread-pool mein
+# chalte hain, isliye Threaded-safe pool chahiye) jo connections
+# reuse karta hai. get_connection() pool se leta hai,
+# release_connection() wapas pool mein daalta hai (band nahi karta).
 # ============================================================
 
 _pool = None
@@ -38,9 +33,7 @@ def _get_pool():
 def get_connection(retries: int = 3, delay: float = 0.5):
     """
     Pool se connection leta hai. Transient network/SSL blips ke liye
-    chhota retry-with-backoff bhi hai — Aiven jaisi managed DB par
-    occasional handshake drop normal hai, isliye ek retry se hi
-    zyadatar cases handle ho jaate hain.
+    chhota retry-with-backoff bhi hai.
     """
     last_err = None
     for attempt in range(retries):
@@ -60,7 +53,6 @@ def release_connection(conn):
     try:
         _get_pool().putconn(conn)
     except Exception:
-        # Pool already closed ya conn kisi wajah se corrupt — safe fallback.
         try:
             conn.close()
         except Exception:
@@ -160,6 +152,17 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
     """)
+
+    # ---- password_resets table (Forgot Password — link-based, 1hr expiry) ----
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS password_resets (
+            token TEXT PRIMARY KEY,
+            email TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL
+        );
+    """)
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_password_resets_email ON password_resets(email);')
 
     # ---- /predict-file feature: naye columns (purane data ko touch nahi karta) ----
     cur.execute('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS filename TEXT;')
@@ -275,8 +278,7 @@ def update_job_mapping(job_id, column_mapping_json):
 def delete_job_and_predictions(job_id):
     """
     HARD DELETE — job row aur uske saare associated predictions
-    permanently DB se gayab, koi soft-delete flag nahi. Predictions
-    pehle delete karo (job_id se linked), phir job khud.
+    permanently DB se gayab, koi soft-delete flag nahi.
     """
     conn = get_connection()
     cur = conn.cursor()
@@ -376,7 +378,7 @@ def update_user_auth_provider(email, new_provider):
 
 
 def update_user_password(email, password_hash):
-    """Add Password feature — Google-only users (jinka password_hash NULL tha) ke liye password set karta hai."""
+    """Add Password aur Reset Password dono isi function se hote hain."""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("UPDATE users SET password_hash = %s WHERE email = %s", (password_hash, email))
@@ -442,3 +444,46 @@ def get_user_by_id(user_id):
     cur.close()
     release_connection(conn)
     return dict(row) if row else None
+
+
+# ---------- Password reset helpers (Forgot Password — link-based) ----------
+
+def create_password_reset(token, email, expires_at):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO password_resets (token, email, created_at, expires_at)
+        VALUES (%s, %s, %s, %s)
+    """, (token, email, now_iso(), expires_at))
+    conn.commit()
+    cur.close()
+    release_connection(conn)
+
+
+def get_password_reset(token):
+    conn = get_connection()
+    cur = _dict_cursor(conn)
+    cur.execute("SELECT * FROM password_resets WHERE token = %s", (token,))
+    row = cur.fetchone()
+    cur.close()
+    release_connection(conn)
+    return dict(row) if row else None
+
+
+def delete_password_reset(token):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM password_resets WHERE token = %s", (token,))
+    conn.commit()
+    cur.close()
+    release_connection(conn)
+
+
+def delete_password_resets_for_email(email):
+    """Naya reset request aane par purane pending tokens usi email ke saaf kar deta hai."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM password_resets WHERE email = %s", (email,))
+    conn.commit()
+    cur.close()
+    release_connection(conn)

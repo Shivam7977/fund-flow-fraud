@@ -2,14 +2,18 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Request, Response, HTTPException
 from fastapi.responses import RedirectResponse
 from config import settings
-from auth.models import SignupRequest, OTPVerifyRequest, LoginRequest, SetPasswordRequest, MessageResponse
+from auth.models import (
+    SignupRequest, OTPVerifyRequest, LoginRequest, SetPasswordRequest,
+    ForgotPasswordRequest, ResetPasswordRequest, MessageResponse,
+)
 from auth.utils import hash_password, verify_password, generate_otp, is_otp_expired, generate_session_token
-from auth.email_service import send_otp_email
+from auth.email_service import send_otp_email, send_password_reset_email
 from auth.google_oauth import get_google_redirect_url, handle_google_callback
 from core.db import (
     create_pending_signup, get_pending_signup, delete_pending_signup,
     create_user, get_user_by_email, create_session, get_session,
     delete_session, get_user_by_id, update_user_password, update_user_auth_provider,
+    create_password_reset, get_password_reset, delete_password_reset, delete_password_resets_for_email,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -135,8 +139,7 @@ def set_password(data: SetPasswordRequest, request: Request):
     """
     Jo user Google se signup kiya tha (password_hash NULL), unhe ab
     email+password se bhi login karne laayak banata hai. Already
-    password-wale accounts ke liye blocked — ye endpoint sirf pehli
-    baar password ADD karne ke liye hai, change karne ke liye nahi.
+    password-wale accounts ke liye blocked.
     """
     user = get_current_user(request)
     if not user or user.get("guest"):
@@ -152,6 +155,55 @@ def set_password(data: SetPasswordRequest, request: Request):
         update_user_auth_provider(user["email"], "both")
 
     return MessageResponse(status="ok", message="Password added successfully. You can now also log in with your email and password")
+
+
+# ---------- Forgot Password (link-based, 1hr expiry) ----------
+
+@router.post("/forgot-password", response_model=MessageResponse)
+def forgot_password(data: ForgotPasswordRequest, request: Request):
+    """
+    Email se reset link bhejta hai. Response HAMESHA generic hai —
+    chahe account exist kare ya na kare — taaki koi ye pata na laga
+    sake ki kaunsa email registered hai (user enumeration se bachne
+    ke liye).
+    """
+    generic = MessageResponse(
+        status="ok",
+        message="If an account exists for that email, a password reset link has been sent.",
+    )
+
+    user = get_user_by_email(data.email)
+    if not user:
+        return generic
+
+    # Purane pending tokens isi email ke clear kar do, sirf latest link valid rahe
+    delete_password_resets_for_email(data.email)
+
+    token = generate_session_token()
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    create_password_reset(token, data.email, expires_at)
+
+    reset_link = f"{str(request.base_url).rstrip('/')}/reset-password?token={token}"
+    send_password_reset_email(data.email, reset_link)
+
+    return generic
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+def reset_password(data: ResetPasswordRequest):
+    reset = get_password_reset(data.token)
+    if not reset:
+        raise HTTPException(400, "This reset link is invalid or has already been used")
+
+    if datetime.fromisoformat(reset["expires_at"]) < datetime.now(timezone.utc):
+        delete_password_reset(data.token)
+        raise HTTPException(400, "This reset link has expired. Please request a new one")
+
+    password_hash = hash_password(data.password)
+    update_user_password(reset["email"], password_hash)
+    delete_password_reset(data.token)
+
+    return MessageResponse(status="ok", message="Password reset successfully. Please log in with your new password")
 
 
 # ---------- Current user helper (dusre routes ke liye) ----------

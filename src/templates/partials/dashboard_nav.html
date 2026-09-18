@@ -90,6 +90,18 @@
 {% endif %}
 
 <script>
+  // ---- Back-button / bfcache fix ----
+  // Logout ke baad Chrome ka Back button dashboard ka frozen snapshot
+  // dikha deta hai bina server ko dobara poochhe (bfcache). event.persisted
+  // batata hai ye page bfcache se restore hua hai — tab force reload karo
+  // taaki server se dobara check ho (auth fail ho to /login pe redirect ho
+  // jayega, jaisa dashboard_pages.py mein already set hai).
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) {
+      window.location.reload();
+    }
+  });
+
   (function () {
     const sidebar = document.getElementById("dash-sidebar");
     const backdrop = document.getElementById("dash-sidebar-backdrop");
@@ -175,8 +187,6 @@
           const data = await res.json();
           if (!res.ok) throw new Error((data.detail && (data.detail.error || data.detail)) || "Could not set password.");
           closePasswordModal();
-          // "Add Password" button ko wapas dikhna nahi chahiye ab — reload se
-          // user.password_hash set hoke aa jayega aur template khud item hide kar dega.
           window.location.reload();
         } catch (err) {
           passwordError.textContent = err.message;

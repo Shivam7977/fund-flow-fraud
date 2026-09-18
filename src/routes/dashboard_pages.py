@@ -13,13 +13,27 @@ def _require_user(request: Request):
     return get_current_user(request)
 
 
+def _no_cache_render(request: Request, name: str, context: dict | None = None):
+    """
+    Dashboard jaisa authenticated page render karke response pe
+    Cache-Control: no-store lagata hai — taaki logout ke baad browser
+    ka back button (bfcache) purana rendered page dikha na sake.
+    Har protected page-rendering route isi ke through jaana chahiye,
+    seedha templates.TemplateResponse() nahi.
+    """
+    response = templates.TemplateResponse(request=request, name=name, context=context or {})
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    return response
+
+
 @router.get("/dashboard")
 def dashboard_overview(request: Request):
     user = _require_user(request)
     if not user:
         return RedirectResponse(url="/login")
-    return templates.TemplateResponse(
-        request=request, name="dashboard.html",
+    return _no_cache_render(
+        request, "dashboard.html",
         context={"active_tab": "overview", "user": user},
     )
 
@@ -29,8 +43,8 @@ def dashboard_check(request: Request):
     user = _require_user(request)
     if not user:
         return RedirectResponse(url="/login")
-    return templates.TemplateResponse(
-        request=request, name="dashboard_check.html",
+    return _no_cache_render(
+        request, "dashboard_check.html",
         context={"active_tab": "check", "user": user},
     )
 
@@ -40,8 +54,8 @@ def dashboard_uploads(request: Request):
     user = _require_user(request)
     if not user:
         return RedirectResponse(url="/login")
-    return templates.TemplateResponse(
-        request=request, name="dashboard_uploads.html",
+    return _no_cache_render(
+        request, "dashboard_uploads.html",
         context={"active_tab": "uploads", "user": user},
     )
 
@@ -51,8 +65,8 @@ def dashboard_job_detail(request: Request, job_id: str):
     user = _require_user(request)
     if not user:
         return RedirectResponse(url="/login")
-    return templates.TemplateResponse(
-        request=request, name="dashboard_job.html",
+    return _no_cache_render(
+        request, "dashboard_job.html",
         context={"active_tab": "uploads", "user": user, "job_id": job_id},
     )
 
@@ -62,7 +76,7 @@ def dashboard_history(request: Request):
     user = _require_user(request)
     if not user:
         return RedirectResponse(url="/login")
-    return templates.TemplateResponse(
-        request=request, name="dashboard_history.html",
+    return _no_cache_render(
+        request, "dashboard_history.html",
         context={"active_tab": "history", "user": user},
     )
