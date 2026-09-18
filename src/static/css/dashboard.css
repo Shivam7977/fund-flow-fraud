@@ -271,3 +271,33 @@
 .dash-btn-outline:hover { background: #F1F0EC; border-color: #A3A299; }
 
 .dash-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 24px; font-size: 13.5px; color: var(--text-secondary); }
+/* ---- delete icon button (History / Uploads job tables) ---- */
+.dash-btn-icon-delete {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 10px; border: none; background: none;
+  color: var(--text-muted); cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.dash-btn-icon-delete:hover { background: var(--fraud-bg); color: var(--fraud-text); transform: scale(1.08); }
+.dash-btn-icon-delete:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.dash-table th:last-child, .dash-table td:last-child { width: 44px; text-align: center; }
+
+/* ---- Add Password modal ---- */
+.dash-modal-backdrop {
+  display: none; position: fixed; inset: 0; z-index: 60;
+  background: rgba(10,10,10,0.45); backdrop-filter: blur(3px);
+  align-items: center; justify-content: center; padding: 20px;
+  opacity: 0; transition: opacity 0.25s ease;
+}
+.dash-modal-backdrop.open { display: flex; opacity: 1; }
+.dash-modal {
+  width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--dash-border);
+  border-radius: var(--dash-radius-lg); box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.15); padding: 28px;
+  transform: translateY(10px); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.dash-modal-backdrop.open .dash-modal { transform: translateY(0); }
+.dash-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.dash-modal-head h3 { font-family: var(--font-display, 'Source Serif 4', Georgia, serif); font-size: 20px; margin: 0; }
+.dash-modal-head .dash-sidebar-close { display: flex; }
+.dash-modal-sub { font-size: 13.5px; color: var(--text-secondary); margin: 0 0 22px; line-height: 1.5; }
+.dash-modal-error { background: var(--fraud-bg); color: var(--fraud-text); font-size: 13px; padding: 10px 12px; border-radius: 10px; margin: -6px 0 16px; }

@@ -11,7 +11,7 @@ from core.ml_engine import predict_ml
 from core.graph_engine import score_graph
 from core.db import (
     create_job, update_job, update_job_mapping, get_job, get_jobs_by_user,
-    save_prediction, get_predictions_by_job, get_activity_summary,
+    save_prediction, get_predictions_by_job, get_activity_summary, delete_job_and_predictions,
 )
 from core.csv_mapper import analyze_columns, SOFT_REQUIRED, SOFT_DEFAULTS
 from routes.predict import _combine
@@ -217,6 +217,25 @@ def get_upload_detail(job_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Upload not found")
 
     return {"job": job, "predictions": get_predictions_by_job(job_id)}
+
+
+@uploads_router.delete("/uploads/{job_id}")
+def delete_upload(job_id: str, request: Request):
+    """
+    HARD DELETE — job aur uske saare predictions permanently gayab.
+    Undo nahi ho sakta, isliye frontend confirm dialog dikhata hai
+    delete call se pehle.
+    """
+    user = get_current_user(request)
+    if user is None or user.get("guest") is True:
+        raise HTTPException(status_code=401, detail="Login required")
+
+    job = get_job(job_id)
+    if not job or job["user_id"] != user["id"]:
+        raise HTTPException(status_code=404, detail="Upload not found")
+
+    delete_job_and_predictions(job_id)
+    return {"status": "ok", "message": "Job permanently deleted"}
 
 
 @uploads_router.get("/activity")

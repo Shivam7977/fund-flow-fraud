@@ -155,6 +155,22 @@
     }
   }
 
+  async function deleteJob(jobId, btn) {
+    if (!confirm("This job will be permanently deleted — this can't be undone. Continue?")) return;
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/uploads/${jobId}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.detail || "Could not delete job.");
+      }
+      loadJobs();
+    } catch (err) {
+      alert(err.message);
+      btn.disabled = false;
+    }
+  }
+
   async function loadJobs() {
     try {
       const res = await fetch("/uploads", { credentials: "include" });
@@ -169,7 +185,7 @@
 
       container.innerHTML = `
         <table class="dash-table">
-          <thead><tr><th>File</th><th>Status</th><th>Rows</th><th>Uploaded</th></tr></thead>
+          <thead><tr><th>File</th><th>Status</th><th>Rows</th><th>Uploaded</th><th></th></tr></thead>
           <tbody>
             ${jobs.map((j) => {
               const id = pick(j, ["job_id", "id"], "");
@@ -183,6 +199,11 @@
                   <td><span class="dash-badge ${badgeClass(status)}">${status.toString().toUpperCase()}</span></td>
                   <td>${rows}</td>
                   <td>${fmtTime(created)}</td>
+                  <td onclick="event.stopPropagation()">
+                    <button type="button" class="dash-btn-icon-delete" onclick="deleteJob('${id}', this)" title="Delete permanently">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V4h6v3M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/></svg>
+                    </button>
+                  </td>
                 </tr>`;
             }).join("")}
           </tbody>

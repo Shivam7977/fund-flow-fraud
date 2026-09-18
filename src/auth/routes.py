@@ -2,14 +2,14 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Request, Response, HTTPException
 from fastapi.responses import RedirectResponse
 from config import settings
-from auth.models import SignupRequest, OTPVerifyRequest, LoginRequest, MessageResponse
+from auth.models import SignupRequest, OTPVerifyRequest, LoginRequest, SetPasswordRequest, MessageResponse
 from auth.utils import hash_password, verify_password, generate_otp, is_otp_expired, generate_session_token
 from auth.email_service import send_otp_email
 from auth.google_oauth import get_google_redirect_url, handle_google_callback
 from core.db import (
     create_pending_signup, get_pending_signup, delete_pending_signup,
     create_user, get_user_by_email, create_session, get_session,
-    delete_session, get_user_by_id,
+    delete_session, get_user_by_id, update_user_password, update_user_auth_provider,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -126,6 +126,32 @@ async def google_callback(request: Request):
     redirect = RedirectResponse(url="/dashboard")
     _set_session_cookie(redirect, user["id"])
     return redirect
+
+
+# ---------- Add Password (for Google-only accounts) ----------
+
+@router.post("/set-password", response_model=MessageResponse)
+def set_password(data: SetPasswordRequest, request: Request):
+    """
+    Jo user Google se signup kiya tha (password_hash NULL), unhe ab
+    email+password se bhi login karne laayak banata hai. Already
+    password-wale accounts ke liye blocked — ye endpoint sirf pehli
+    baar password ADD karne ke liye hai, change karne ke liye nahi.
+    """
+    user = get_current_user(request)
+    if not user or user.get("guest"):
+        raise HTTPException(401, "Login required")
+
+    if user.get("password_hash"):
+        raise HTTPException(400, "This account already has a password set")
+
+    password_hash = hash_password(data.password)
+    update_user_password(user["email"], password_hash)
+
+    if user["auth_provider"] == "google":
+        update_user_auth_provider(user["email"], "both")
+
+    return MessageResponse(status="ok", message="Password added successfully. You can now also log in with your email and password")
 
 
 # ---------- Current user helper (dusre routes ke liye) ----------

@@ -272,6 +272,21 @@ def update_job_mapping(job_id, column_mapping_json):
     release_connection(conn)
 
 
+def delete_job_and_predictions(job_id):
+    """
+    HARD DELETE — job row aur uske saare associated predictions
+    permanently DB se gayab, koi soft-delete flag nahi. Predictions
+    pehle delete karo (job_id se linked), phir job khud.
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM predictions WHERE job_id = %s", (job_id,))
+    cur.execute("DELETE FROM jobs WHERE job_id = %s", (job_id,))
+    conn.commit()
+    cur.close()
+    release_connection(conn)
+
+
 def get_job(job_id):
     conn = get_connection()
     cur = _dict_cursor(conn)
@@ -355,6 +370,16 @@ def update_user_auth_provider(email, new_provider):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("UPDATE users SET auth_provider = %s WHERE email = %s", (new_provider, email))
+    conn.commit()
+    cur.close()
+    release_connection(conn)
+
+
+def update_user_password(email, password_hash):
+    """Add Password feature — Google-only users (jinka password_hash NULL tha) ke liye password set karta hai."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE users SET password_hash = %s WHERE email = %s", (password_hash, email))
     conn.commit()
     cur.close()
     release_connection(conn)
