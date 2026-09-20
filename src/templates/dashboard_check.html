@@ -116,6 +116,15 @@
 
 {% block extra_scripts %}
 <script>
+  // SECURITY: form fields (nameOrig/nameDest/txn_type) user apni marzi se
+  // type karta hai. Practically ye self-XSS hi hota (sirf apna browser
+  // affect karega), lekin defense-in-depth ke liye yahan bhi escape karo.
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str == null ? "" : String(str);
+    return div.innerHTML;
+  }
+
   function badgeClass(level) {
     const l = (level || "").toString().toUpperCase();
     if (l === "FRAUD") return "fraud";
@@ -197,7 +206,7 @@
           <div class="risk-head">
             <div>
               <div class="risk-amount">₹${Number(body.amount_inr).toLocaleString("en-IN")}</div>
-              <div class="risk-meta">${body.txn_type} · ${body.nameOrig} → ${body.nameDest}</div>
+              <div class="risk-meta">${escapeHtml(body.txn_type)} · ${escapeHtml(body.nameOrig)} → ${escapeHtml(body.nameDest)}</div>
             </div>
             <span class="dash-badge ${badgeClass(level)}">${level} · ${pct}%</span>
           </div>
@@ -212,10 +221,10 @@
             <div class="score-box"><div class="k">Saved</div><div class="v" style="font-size:12px;">${data.saved ? "Yes" : "Guest"}</div></div>
           </div>
           ${Array.isArray(data.graph_flags) && data.graph_flags.length
-            ? `<div class="flags" style="margin-bottom:14px;">${data.graph_flags.map(f => `<span class="flag">${f}</span>`).join("")}</div>`
+            ? `<div class="flags" style="margin-bottom:14px;">${data.graph_flags.map(f => `<span class="flag">${escapeHtml(f)}</span>`).join("")}</div>`
             : `<p style="font-size:12.5px; color: var(--text-muted); margin:0 0 14px;">No graph patterns flagged.</p>`}
           ${defaultsUsed.length
-            ? `<p style="font-size:11.5px; color: var(--review-text); background: var(--review-bg); padding:8px 12px; border-radius: var(--radius-sm); margin:0;">Defaulted: ${defaultsUsed.map(f => FIELD_LABELS[f] || f).join(", ")}</p>`
+            ? `<p style="font-size:11.5px; color: var(--review-text); background: var(--review-bg); padding:8px 12px; border-radius: var(--radius-sm); margin:0;">Defaulted: ${defaultsUsed.map(f => escapeHtml(FIELD_LABELS[f] || f)).join(", ")}</p>`
             : ""}
         </div>
       `;

@@ -50,11 +50,19 @@
       <div class="dash-panel-head">
         <h3>Job History</h3>
       </div>
+
+      <div class="dash-form" style="margin-bottom:18px;">
+        <div class="field" style="margin-bottom:0;">
+          <input type="text" id="uploads-search" placeholder="Search uploaded files by name..." autocomplete="off">
+        </div>
+      </div>
+
       <div id="jobs-table">
         <div class="dash-skeleton"></div>
         <div class="dash-skeleton"></div>
         <div class="dash-skeleton"></div>
       </div>
+      <div id="uploads-pagination"></div>
     </div>
 
   </div>
@@ -63,6 +71,16 @@
 
 {% block extra_scripts %}
 <script>
+  // SECURITY: filename aur missing-column-names dono user-controlled hain
+  // (upload ki gayi file ka naam / uske andar ke column headers). Kabhi
+  // seedha innerHTML mein mat daalo — escape karke text ki tarah treat
+  // karwao (stored XSS se bachne ke liye).
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str == null ? "" : String(str);
+    return div.innerHTML;
+  }
+
   function pick(obj, keys, fallback) {
     for (const k of keys) { if (obj && obj[k] !== undefined && obj[k] !== null) return obj[k]; }
     return fallback;
@@ -121,14 +139,14 @@
         const missing = data.missing_optional_fields || [];
         confirmBanner.innerHTML = `
           <div class="dash-confirm-banner">
-            <div class="txt"><strong>Some optional columns are missing</strong>${missing.length ? missing.join(", ") : "Proceed with defaults, or go back and remap."}</div>
+            <div class="txt"><strong>Some optional columns are missing</strong>${missing.length ? missing.map(escapeHtml).join(", ") : "Proceed with defaults, or go back and remap."}</div>
             <div style="display:flex; gap:8px;">
               <button class="dash-btn dash-btn-dark" id="confirm-proceed">Proceed with defaults</button>
             </div>
           </div>`;
         document.getElementById("confirm-proceed").addEventListener("click", confirmProceed);
       } else {
-        loadJobs();
+        loadJobs(1);
       }
     } catch (err) {
       alert(err.message);
@@ -149,11 +167,15 @@
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.detail || "Could not confirm job."); }
       confirmBanner.innerHTML = "";
-      loadJobs();
+      loadJobs(1);
     } catch (err) {
       alert(err.message);
     }
   }
+
+  let uploadsPage = 1;
+  let uploadsQuery = "";
+  let uploadsSearchTimer = null;
 
   async function deleteJob(jobId, btn) {
     if (!confirm("This job will be permanently deleted — this can't be undone. Continue?")) return;
@@ -164,22 +186,45 @@
         const d = await res.json().catch(() => ({}));
         throw new Error(d.detail || "Could not delete job.");
       }
-      loadJobs();
+      loadJobs(uploadsPage);
     } catch (err) {
       alert(err.message);
       btn.disabled = false;
     }
   }
 
-  async function loadJobs() {
+  function renderPagination(container, page, totalPages, onPageChange) {
+    if (totalPages <= 1) { container.innerHTML = ""; return; }
+    container.innerHTML = `
+      <div class="dash-pagination">
+        <button type="button" class="dash-btn dash-btn-outline" id="uploads-prev" ${page <= 1 ? "disabled" : ""}>← Prev</button>
+        <span>Page ${page} of ${totalPages}</span>
+        <button type="button" class="dash-btn dash-btn-outline" id="uploads-next" ${page >= totalPages ? "disabled" : ""}>Next →</button>
+      </div>`;
+    const prevBtn = document.getElementById("uploads-prev");
+    const nextBtn = document.getElementById("uploads-next");
+    if (prevBtn) prevBtn.addEventListener("click", () => onPageChange(page - 1));
+    if (nextBtn) nextBtn.addEventListener("click", () => onPageChange(page + 1));
+  }
+
+  async function loadJobs(page = 1) {
+    uploadsPage = page;
+    const container = document.getElementById("jobs-table");
+    const paginationEl = document.getElementById("uploads-pagination");
     try {
-      const res = await fetch("/uploads", { credentials: "include" });
+      const params = new URLSearchParams();
+      if (uploadsQuery.trim().length >= 2) params.set("q", uploadsQuery.trim());
+      params.set("page", page);
+      params.set("limit", 10);
+
+      const res = await fetch(`/uploads?${params.toString()}`, { credentials: "include" });
       const data = await res.json();
       const jobs = Array.isArray(data) ? data : pick(data, ["jobs", "uploads"], []);
+      const totalPages = data.total_pages || 1;
 
-      const container = document.getElementById("jobs-table");
       if (!jobs.length) {
-        container.innerHTML = `<div class="dash-empty">No uploads yet — drop a CSV above to run your first batch scan.</div>`;
+        container.innerHTML = `<div class="dash-empty">${uploadsQuery.trim() ? "No files match your search." : "No uploads yet — drop a CSV above to run your first batch scan."}</div>`;
+        paginationEl.innerHTML = "";
         return;
       }
 
@@ -195,7 +240,7 @@
               const created = pick(j, ["created_at", "timestamp"], "");
               return `
                 <tr class="clickable" onclick="window.location='/dashboard/uploads/${id}'">
-                  <td><div class="fname">${filename}</div><div class="fmeta">${id}</div></td>
+                  <td><div class="fname">${escapeHtml(filename)}</div><div class="fmeta">${id}</div></td>
                   <td><span class="dash-badge ${badgeClass(status)}">${status.toString().toUpperCase()}</span></td>
                   <td>${rows}</td>
                   <td>${fmtTime(created)}</td>
@@ -208,11 +253,19 @@
             }).join("")}
           </tbody>
         </table>`;
+
+      renderPagination(paginationEl, page, totalPages, loadJobs);
     } catch (err) {
       document.getElementById("jobs-table").innerHTML = `<div class="dash-empty">Couldn't load job history.</div>`;
       console.error(err);
     }
   }
+
+  document.getElementById("uploads-search").addEventListener("input", (e) => {
+    uploadsQuery = e.target.value;
+    clearTimeout(uploadsSearchTimer);
+    uploadsSearchTimer = setTimeout(() => loadJobs(1), 300);
+  });
 
   loadJobs();
 </script>

@@ -2,7 +2,8 @@ import os
 import json
 import uuid
 import pandas as pd
-from fastapi import APIRouter, Request, UploadFile, File, BackgroundTasks, HTTPException
+from datetime import datetime, timedelta, timezone
+from fastapi import APIRouter, Request, UploadFile, File, BackgroundTasks, HTTPException, Query
 from pydantic import BaseModel
 
 from config import settings
@@ -10,7 +11,7 @@ from auth.routes import get_current_user
 from core.ml_engine import predict_ml
 from core.graph_engine import score_graph
 from core.db import (
-    create_job, update_job, update_job_mapping, get_job, get_jobs_by_user,
+    create_job, update_job, update_job_mapping, get_job, search_jobs, get_stale_pending_jobs,
     save_prediction, get_predictions_by_job, get_activity_summary, delete_job_and_predictions,
 )
 from core.csv_mapper import analyze_columns, SOFT_REQUIRED, SOFT_DEFAULTS
@@ -22,6 +23,16 @@ uploads_router = APIRouter(tags=["uploads"])
 # Temp CSV files yahan rakhe jaayenge (confirmation ke wait mein, ya processing ke dauraan)
 TMP_UPLOAD_DIR = os.path.join(os.path.dirname(settings.STATIC_CSV_PATH), "tmp_uploads")
 os.makedirs(TMP_UPLOAD_DIR, exist_ok=True)
+
+# Ek upload itna bada nahi hona chahiye ki poori file memory mein load
+# hote hi (pd.read_csv) server ka RAM khatam kar de. 10MB kaafi generous
+# hai chhote-medium CSVs ke liye (demo/college-project scale).
+MAX_CSV_SIZE_BYTES = 10 * 1024 * 1024
+
+# Kitni der tak "pending_confirmation" job abandon maana jaaye (user
+# confirm karna bhool gaya) — cleanup_stale_pending_jobs() isse compare
+# karta hai.
+STALE_PENDING_HOURS = 24
 
 
 class ConfirmIn(BaseModel):
@@ -105,12 +116,56 @@ def process_file_job(job_id: str, file_path: str, mapping: dict, user_id, is_gue
             os.remove(file_path)
 
 
+def cleanup_stale_pending_jobs():
+    """
+    Jo jobs 'pending_confirmation' mein atke reh gaye (user confirm karna
+    bhool gaya, tab browser band kar diya) — unka temp CSV file kabhi
+    delete nahi hota, sirf process_file_job() ke success/fail path pe
+    cleanup hota hai. Ye function un purane pending jobs ko 'failed' mark
+    karke unka temp file disk se hata deta hai.
+
+    App startup pe ek baar call karo (app.py mein, init_db() ke paas):
+
+        from routes.predict_file import cleanup_stale_pending_jobs
+        cleanup_stale_pending_jobs()
+
+    Chaho to isse periodic bhi bana sakte ho (APScheduler jaisa kuch),
+    abhi ke liye startup-time cleanup kaafi hai.
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=STALE_PENDING_HOURS)).isoformat()
+    stale_jobs = get_stale_pending_jobs(cutoff)
+
+    for job in stale_jobs:
+        file_path = job.get("file_path")
+        if file_path and os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except OSError as e:
+                print(f"[predict_file] Could not remove stale temp file {file_path}: {e}")
+        update_job(job["job_id"], status="failed", error_message="Upload was never confirmed — auto-cleaned up.")
+
+    if stale_jobs:
+        print(f"[predict_file] Cleaned up {len(stale_jobs)} stale pending_confirmation job(s).")
+
+
 # ---------- Upload endpoint ----------
 
 @router.post("/file")
 async def upload_file(request: Request, background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported")
+
+    # File size cap — poori CSV memory mein load hone se pehle reject
+    # kar do agar bahut badi hai. file.file ek SpooledTemporaryFile hai,
+    # seek/tell dono version-independent tarike se kaam karte hain.
+    file.file.seek(0, os.SEEK_END)
+    file_size = file.file.tell()
+    file.file.seek(0)
+    if file_size > MAX_CSV_SIZE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Max allowed size is {MAX_CSV_SIZE_BYTES // (1024 * 1024)}MB.",
+        )
 
     user = get_current_user(request)
     is_guest = user is None or user.get("guest") is True
@@ -196,14 +251,32 @@ def get_file_job_status(job_id: str):
     return job
 
 
-# ---------- Upload history ----------
+# ---------- Upload history (search + filter + pagination, unified) ----------
 
 @uploads_router.get("/uploads")
-def list_uploads(request: Request):
+def list_uploads(
+    request: Request,
+    q: str | None = Query(None, description="Filename search — fuzzy/typo-tolerant, needs 2+ chars to activate"),
+    status: str | None = Query(None, description="Filter by job status, e.g. done/processing/failed"),
+    date_from: str | None = Query(None, description="ISO date — jobs created on/after this"),
+    date_to: str | None = Query(None, description="ISO date — jobs created on/before this"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+):
+    """
+    Single history endpoint — search, status/date filters aur pagination
+    sab isi mein. user_id HAMESHA session se aata hai (get_current_user),
+    kabhi query param se nahi — isliye ek user kabhi doosre ki files nahi
+    dekh sakta, chahe wo kuch bhi bheje.
+    """
     user = get_current_user(request)
     if user is None or user.get("guest") is True:
         raise HTTPException(status_code=401, detail="Login required to view upload history")
-    return {"uploads": get_jobs_by_user(user["id"])}
+
+    return search_jobs(
+        user["id"], q=q, status=status, date_from=date_from, date_to=date_to,
+        page=page, limit=limit,
+    )
 
 
 @uploads_router.get("/uploads/{job_id}")

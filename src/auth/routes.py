@@ -1,3 +1,5 @@
+import time
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Request, Response, HTTPException
 from fastapi.responses import RedirectResponse
@@ -19,7 +21,36 @@ from core.db import (
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _set_session_cookie(response: Response, user_id: int):
+# ============================================================
+# Rate limiting
+# ------------------------------------------------------------
+# Simple in-memory sliding-window limiter, keyed by (bucket name + IP).
+# Isse brute-force login attempts aur forgot-password email-spam dono
+# rukte hain. NOTE: single-process ke liye theek hai — agar kabhi
+# multiple server instances (load balancer ke peeche) pe deploy karo,
+# isko Redis jaisa shared store use karna padega, kyunki har process
+# ka apna alag in-memory dict hoga.
+# ============================================================
+
+_rate_limit_buckets: dict[str, list[float]] = defaultdict(list)
+
+
+def _check_rate_limit(request: Request, bucket_name: str, max_attempts: int = 5, window_seconds: int = 60):
+    ip = request.client.host if request.client else "unknown"
+    key = f"{bucket_name}:{ip}"
+    now = time.time()
+    bucket = _rate_limit_buckets[key]
+
+    while bucket and bucket[0] < now - window_seconds:
+        bucket.pop(0)
+
+    if len(bucket) >= max_attempts:
+        raise HTTPException(status_code=429, detail="Too many attempts. Please wait a bit and try again.")
+
+    bucket.append(now)
+
+
+def _set_session_cookie(request: Request, response: Response, user_id: int):
     session_id = generate_session_token()
     expires_at = (datetime.now(timezone.utc) + timedelta(seconds=settings.SESSION_MAX_AGE)).isoformat()
     create_session(session_id, user_id, expires_at)
@@ -29,13 +60,20 @@ def _set_session_cookie(response: Response, user_id: int):
         max_age=settings.SESSION_MAX_AGE,
         httponly=True,
         samesite="lax",
+        # Production (HTTPS) mein cookie sirf HTTPS pe bhejta hai. Local
+        # dev (http://127.0.0.1) mein request.url.scheme "http" hoga,
+        # isliye wahan flag apne aap False rahega — koi manual config
+        # switch nahi chahiye.
+        secure=request.url.scheme == "https",
     )
 
 
 # ---------- Signup + OTP ----------
 
 @router.post("/signup", response_model=MessageResponse)
-def signup(data: SignupRequest):
+def signup(data: SignupRequest, request: Request):
+    _check_rate_limit(request, "signup", max_attempts=5, window_seconds=300)
+
     if get_user_by_email(data.email):
         raise HTTPException(400, "This email is already registered")
 
@@ -75,7 +113,9 @@ def verify_otp(data: OTPVerifyRequest):
 # ---------- Login / Logout ----------
 
 @router.post("/login", response_model=MessageResponse)
-def login(data: LoginRequest, response: Response):
+def login(data: LoginRequest, request: Request, response: Response):
+    _check_rate_limit(request, "login", max_attempts=5, window_seconds=60)
+
     user = get_user_by_email(data.email)
     if not user or not user["password_hash"]:
         raise HTTPException(401, "Incorrect email or password")
@@ -83,7 +123,7 @@ def login(data: LoginRequest, response: Response):
     if not verify_password(data.password, user["password_hash"]):
         raise HTTPException(401, "Incorrect email or password")
 
-    _set_session_cookie(response, user["id"])
+    _set_session_cookie(request, response, user["id"])
     return MessageResponse(status="ok", message="Login successful")
 
 
@@ -99,12 +139,13 @@ def logout(request: Request, response: Response):
 # ---------- Guest ----------
 
 @router.post("/guest-login", response_model=MessageResponse)
-def guest_login(response: Response):
+def guest_login(request: Request, response: Response):
     response.set_cookie(
         settings.SESSION_COOKIE_NAME,
         "guest",
         httponly=True,
         samesite="lax",
+        secure=request.url.scheme == "https",
     )
     return MessageResponse(status="ok", message="Guest mode active")
 
@@ -121,14 +162,18 @@ async def google_callback(request: Request):
     try:
         user = await handle_google_callback(request)
     except Exception as e:
-        raise HTTPException(400, f"Google login failed. Please try again: {e}")
+        # Internal exception detail (library internals, config hints)
+        # client ko kabhi nahi dikhna chahiye — server logs mein rakho,
+        # user ko sirf generic message do.
+        print(f"[auth] Google login failed: {e}")
+        raise HTTPException(400, "Google login failed. Please try again.")
 
     # IMPORTANT: cookie must be set on the redirect response itself.
     # Setting it on an injected `response: Response` param only merges
     # into the final response when you return a plain dict — it does
     # NOT merge when you return a RedirectResponse instance directly.
     redirect = RedirectResponse(url="/dashboard")
-    _set_session_cookie(redirect, user["id"])
+    _set_session_cookie(request, redirect, user["id"])
     return redirect
 
 
@@ -163,10 +208,12 @@ def set_password(data: SetPasswordRequest, request: Request):
 def forgot_password(data: ForgotPasswordRequest, request: Request):
     """
     Email se reset link bhejta hai. Response HAMESHA generic hai —
-    chahe account exist kare ya na kare — taaki koi ye pata na laga
-    sake ki kaunsa email registered hai (user enumeration se bachne
-    ke liye).
+    chahe account exist kare ya na kare (user enumeration se bachne
+    ke liye). Rate-limited taaki koi ek email pe baar-baar mail spam
+    na kar sake.
     """
+    _check_rate_limit(request, "forgot-password", max_attempts=3, window_seconds=300)
+
     generic = MessageResponse(
         status="ok",
         message="If an account exists for that email, a password reset link has been sent.",
@@ -176,7 +223,6 @@ def forgot_password(data: ForgotPasswordRequest, request: Request):
     if not user:
         return generic
 
-    # Purane pending tokens isi email ke clear kar do, sirf latest link valid rahe
     delete_password_resets_for_email(data.email)
 
     token = generate_session_token()

@@ -19,6 +19,8 @@ from routes.dashboard_pages import router as dashboard_pages_router
 async def lifespan(app: FastAPI):
     # Startup — app chalu hote hi ek baar
     init_db()
+    from routes.predict_file import cleanup_stale_pending_jobs
+    cleanup_stale_pending_jobs()
     print("✅ Database ready")
     yield
     # Shutdown (abhi kuch cleanup nahi chahiye)

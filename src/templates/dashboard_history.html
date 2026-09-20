@@ -30,11 +30,19 @@
         <h3>All Jobs</h3>
         <a href="/dashboard/uploads" class="group inline-flex items-center gap-1">Upload new CSV <span class="transition-transform duration-300 group-hover:translate-x-1">→</span></a>
       </div>
+
+      <div class="dash-form" style="margin-bottom:18px;">
+        <div class="field" style="margin-bottom:0;">
+          <input type="text" id="history-search" placeholder="Search uploaded files by name..." autocomplete="off">
+        </div>
+      </div>
+
       <div id="history-table">
         <div class="dash-skeleton"></div>
         <div class="dash-skeleton"></div>
         <div class="dash-skeleton"></div>
       </div>
+      <div id="history-pagination"></div>
     </div>
 
   </div>
@@ -43,6 +51,16 @@
 
 {% block extra_scripts %}
 <script>
+  // SECURITY: filename user-controlled hai (jo bhi naam se file upload
+  // ki gayi). Kabhi bhi seedha ${filename} innerHTML mein mat daalo —
+  // ye escape karke browser ko text ki tarah treat karwata hai, HTML
+  // ki tarah nahi (stored XSS se bachne ke liye).
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str == null ? "" : String(str);
+    return div.innerHTML;
+  }
+
   function pick(obj, keys, fallback) {
     for (const k of keys) { if (obj && obj[k] !== undefined && obj[k] !== null) return obj[k]; }
     return fallback;
@@ -60,6 +78,10 @@
     return isNaN(d.getTime()) ? String(v) : d.toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
   }
 
+  let historyPage = 1;
+  let historyQuery = "";
+  let historySearchTimer = null;
+
   async function deleteJob(jobId, btn) {
     if (!confirm("This job will be permanently deleted — this can't be undone. Continue?")) return;
     btn.disabled = true;
@@ -69,26 +91,50 @@
         const d = await res.json().catch(() => ({}));
         throw new Error(d.detail || "Could not delete job.");
       }
-      loadHistory();
+      loadHistory(historyPage);
     } catch (err) {
       alert(err.message);
       btn.disabled = false;
     }
   }
 
-  async function loadHistory() {
+  function renderPagination(container, page, totalPages, onPageChange) {
+    if (totalPages <= 1) { container.innerHTML = ""; return; }
+    container.innerHTML = `
+      <div class="dash-pagination">
+        <button type="button" class="dash-btn dash-btn-outline" id="hist-prev" ${page <= 1 ? "disabled" : ""}>← Prev</button>
+        <span>Page ${page} of ${totalPages}</span>
+        <button type="button" class="dash-btn dash-btn-outline" id="hist-next" ${page >= totalPages ? "disabled" : ""}>Next →</button>
+      </div>`;
+    const prevBtn = document.getElementById("hist-prev");
+    const nextBtn = document.getElementById("hist-next");
+    if (prevBtn) prevBtn.addEventListener("click", () => onPageChange(page - 1));
+    if (nextBtn) nextBtn.addEventListener("click", () => onPageChange(page + 1));
+  }
+
+  async function loadHistory(page = 1) {
+    historyPage = page;
+    const container = document.getElementById("history-table");
+    const paginationEl = document.getElementById("history-pagination");
     try {
-      const res = await fetch("/uploads", { credentials: "include" });
-      const container = document.getElementById("history-table");
+      const params = new URLSearchParams();
+      if (historyQuery.trim().length >= 2) params.set("q", historyQuery.trim());
+      params.set("page", page);
+      params.set("limit", 10);
+
+      const res = await fetch(`/uploads?${params.toString()}`, { credentials: "include" });
       if (!res.ok) {
         container.innerHTML = `<div class="dash-empty">Sign up (not guest) to see job history.</div>`;
+        paginationEl.innerHTML = "";
         return;
       }
       const data = await res.json();
       const jobs = Array.isArray(data) ? data : pick(data, ["jobs", "uploads"], []);
+      const totalPages = data.total_pages || 1;
 
       if (!jobs.length) {
-        container.innerHTML = `<div class="dash-empty">No jobs yet — upload a CSV to get started.</div>`;
+        container.innerHTML = `<div class="dash-empty">${historyQuery.trim() ? "No files match your search." : "No jobs yet — upload a CSV to get started."}</div>`;
+        paginationEl.innerHTML = "";
         return;
       }
 
@@ -104,7 +150,7 @@
               const created = pick(j, ["created_at", "timestamp"], "");
               return `
                 <tr class="clickable" onclick="window.location='/dashboard/uploads/${id}'">
-                  <td><div class="fname">${filename}</div><div class="fmeta">${id}</div></td>
+                  <td><div class="fname">${escapeHtml(filename)}</div><div class="fmeta">${id}</div></td>
                   <td><span class="dash-badge ${badgeClass(status)}">${status.toString().toUpperCase()}</span></td>
                   <td>${rows}</td>
                   <td>${fmtTime(created)}</td>
@@ -117,11 +163,19 @@
             }).join("")}
           </tbody>
         </table>`;
+
+      renderPagination(paginationEl, page, totalPages, loadHistory);
     } catch (err) {
       document.getElementById("history-table").innerHTML = `<div class="dash-empty">Couldn't load job history.</div>`;
       console.error(err);
     }
   }
+
+  document.getElementById("history-search").addEventListener("input", (e) => {
+    historyQuery = e.target.value;
+    clearTimeout(historySearchTimer);
+    historySearchTimer = setTimeout(() => loadHistory(1), 300);
+  });
 
   loadHistory();
 </script>

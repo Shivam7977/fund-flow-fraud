@@ -65,6 +65,15 @@
 
 {% block extra_scripts %}
 <script>
+  // SECURITY: j.filename user-controlled hai (upload ki gayi file ka
+  // naam). Kabhi seedha innerHTML mein mat daalo — escape karke text
+  // ki tarah treat karwao (stored XSS se bachne ke liye).
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str == null ? "" : String(str);
+    return div.innerHTML;
+  }
+
   function badgeClass(status) {
     const s = (status || "").toString().toLowerCase();
     if (s === "failed") return "fraud";
@@ -128,7 +137,7 @@
       container.innerHTML = '<div class="dash-row-list">' + jobs.map((j) => `
         <div class="dash-row" style="cursor:pointer;" onclick="window.location='/dashboard/uploads/${j.job_id}'">
           <div class="left">
-            <span class="id">${j.filename || j.job_id}</span>
+            <span class="id">${escapeHtml(j.filename || j.job_id)}</span>
             <span class="meta">${j.total_rows ?? "—"} rows · ${fmtTime(j.created_at)}</span>
           </div>
           <div class="right">

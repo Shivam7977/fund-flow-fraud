@@ -57,6 +57,15 @@
 <script>
   const JOB_ID = {{ job_id | tojson }};
 
+  // SECURITY: nameOrig/nameDest/type CSV se aate hain (user-controlled
+  // account names/transaction type strings). Kabhi seedha innerHTML mein
+  // mat daalo — escape karke text ki tarah treat karwao.
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str == null ? "" : String(str);
+    return div.innerHTML;
+  }
+
   function badgeClass(level) {
     const l = (level || "").toString().toUpperCase();
     if (l === "FRAUD") return "fraud";
@@ -78,6 +87,8 @@
       const job = data.job;
       const predictions = data.predictions || [];
 
+      // .textContent already auto-escapes — job.filename/job.status/
+      // job.error_message safe hain yahan.
       document.getElementById("job-title").textContent = job.filename || JOB_ID;
 
       let metaText = `Status: ${job.status.toUpperCase()}`;
@@ -119,9 +130,9 @@
             <tbody>
               ${flagged.map((p) => `
                 <tr>
-                  <td>${p.nameOrig}</td>
-                  <td>${p.nameDest}</td>
-                  <td>${p.type || "—"}</td>
+                  <td>${escapeHtml(p.nameOrig)}</td>
+                  <td>${escapeHtml(p.nameDest)}</td>
+                  <td>${escapeHtml(p.type) || "—"}</td>
                   <td>${fmtAmount(p.amount_inr)}</td>
                   <td><span class="dash-badge ${badgeClass(p.risk_level)}">${p.risk_level}</span></td>
                 </tr>`).join("")}

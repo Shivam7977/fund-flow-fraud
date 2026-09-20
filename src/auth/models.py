@@ -16,6 +16,12 @@ def _password_strength(v: str) -> str:
     return v
 
 
+def _passwords_match(v: str, info) -> str:
+    if "password" in info.data and v != info.data["password"]:
+        raise ValueError("Password and Confirm Password do not match")
+    return v
+
+
 class SignupRequest(BaseModel):
     name: str
     email: EmailStr
@@ -31,9 +37,7 @@ class SignupRequest(BaseModel):
     @field_validator("confirm_password")
     @classmethod
     def passwords_match(cls, v: str, info) -> str:
-        if "password" in info.data and v != info.data["password"]:
-            raise ValueError("Password and Confirm Password do not match")
-        return v
+        return _passwords_match(v, info)
 
 
 class OTPVerifyRequest(BaseModel):
@@ -47,10 +51,7 @@ class LoginRequest(BaseModel):
 
 
 class SetPasswordRequest(BaseModel):
-    """
-    Add Password feature — jo user Google se signup kiya tha (password_hash
-    NULL) unke liye. Same strength rules jo SignupRequest mein hain.
-    """
+    """Add Password feature — jo user Google se signup kiya tha (password_hash NULL) unke liye."""
     password: str
     confirm_password: str
 
@@ -62,9 +63,7 @@ class SetPasswordRequest(BaseModel):
     @field_validator("confirm_password")
     @classmethod
     def passwords_match(cls, v: str, info) -> str:
-        if "password" in info.data and v != info.data["password"]:
-            raise ValueError("Password and Confirm Password do not match")
-        return v
+        return _passwords_match(v, info)
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -86,9 +85,7 @@ class ResetPasswordRequest(BaseModel):
     @field_validator("confirm_password")
     @classmethod
     def passwords_match(cls, v: str, info) -> str:
-        if "password" in info.data and v != info.data["password"]:
-            raise ValueError("Password and Confirm Password do not match")
-        return v
+        return _passwords_match(v, info)
 
 
 class UserOut(BaseModel):

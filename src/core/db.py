@@ -1,4 +1,5 @@
 import time
+import hashlib
 import psycopg2
 import psycopg2.extras
 import psycopg2.pool
@@ -8,9 +9,7 @@ from config import settings
 # ============================================================
 # Connection pooling
 # ------------------------------------------------------------
-# Pehle har function apna khud ka psycopg2.connect() karta tha —
-# har query = ek naya TCP+SSL handshake Aiven tak. Ab ek
-# ThreadedConnectionPool (FastAPI BackgroundTasks thread-pool mein
+# Ek ThreadedConnectionPool (FastAPI BackgroundTasks thread-pool mein
 # chalte hain, isliye Threaded-safe pool chahiye) jo connections
 # reuse karta hai. get_connection() pool se leta hai,
 # release_connection() wapas pool mein daalta hai (band nahi karta).
@@ -31,10 +30,7 @@ def _get_pool():
 
 
 def get_connection(retries: int = 3, delay: float = 0.5):
-    """
-    Pool se connection leta hai. Transient network/SSL blips ke liye
-    chhota retry-with-backoff bhi hai.
-    """
+    """Pool se connection leta hai, transient network/SSL blips ke liye retry-with-backoff ke saath."""
     last_err = None
     for attempt in range(retries):
         try:
@@ -72,9 +68,7 @@ def init_db():
     NOTE: nameOrig, nameDest, isFraud_label — ye camelCase/mixed-case
     columns hain. Postgres unquoted identifiers ko automatically
     lowercase kar deta hai, isliye inhe hamesha double-quotes mein
-    likhna zaroori hai (CREATE TABLE mein bhi, aur har query mein bhi)
-    taaki exact case preserve rahe aur Python code (jo "nameOrig" naam
-    se access karta hai) match kare.
+    likhna zaroori hai taaki exact case preserve rahe.
     """
     conn = get_connection()
     cur = conn.cursor()
@@ -154,6 +148,8 @@ def init_db():
     """)
 
     # ---- password_resets table (Forgot Password — link-based, 1hr expiry) ----
+    # NOTE: 'token' column ab hashed value store karta hai, plaintext nahi
+    # (dekho create_password_reset/get_password_reset/delete_password_reset).
     cur.execute("""
         CREATE TABLE IF NOT EXISTS password_resets (
             token TEXT PRIMARY KEY,
@@ -171,6 +167,11 @@ def init_db():
     cur.execute('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS column_mapping TEXT;')
     cur.execute('ALTER TABLE predictions ADD COLUMN IF NOT EXISTS job_id TEXT;')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_pred_job_id ON predictions(job_id);')
+
+    # ---- History search (fuzzy, typo-tolerant) + fast per-user listing ----
+    cur.execute('CREATE EXTENSION IF NOT EXISTS pg_trgm;')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_jobs_filename_trgm ON jobs USING GIN (filename gin_trgm_ops);')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_jobs_user_created ON jobs (user_id, created_at DESC);')
 
     conn.commit()
     cur.close()
@@ -276,10 +277,7 @@ def update_job_mapping(job_id, column_mapping_json):
 
 
 def delete_job_and_predictions(job_id):
-    """
-    HARD DELETE — job row aur uske saare associated predictions
-    permanently DB se gayab, koi soft-delete flag nahi.
-    """
+    """HARD DELETE — job row aur uske saare associated predictions permanently DB se gayab."""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("DELETE FROM predictions WHERE job_id = %s", (job_id,))
@@ -299,14 +297,108 @@ def get_job(job_id):
     return dict(row) if row else None
 
 
-def get_jobs_by_user(user_id):
+def get_stale_pending_jobs(older_than_iso: str):
+    """
+    pending_confirmation status mein atke hue purane jobs dhundta hai —
+    inka temp CSV file kabhi delete nahi hota kyunki process_file_job()
+    sirf success/fail path pe cleanup karta hai. cleanup_stale_pending_jobs()
+    isko use karta hai.
+    """
     conn = get_connection()
     cur = _dict_cursor(conn)
-    cur.execute("SELECT * FROM jobs WHERE user_id = %s ORDER BY created_at DESC", (user_id,))
+    cur.execute(
+        "SELECT job_id, file_path FROM jobs WHERE status = 'pending_confirmation' AND created_at < %s",
+        (older_than_iso,),
+    )
     rows = cur.fetchall()
     cur.close()
     release_connection(conn)
     return [dict(row) for row in rows]
+
+
+def search_jobs(user_id, q=None, status=None, date_from=None, date_to=None, page=1, limit=20):
+    """
+    Unified history listing — GET /uploads ka single data source:
+    search (typo-tolerant via pg_trgm) + status/date filters + pagination,
+    sab ek hi query mein. HAMESHA user_id se scoped — caller ye id session
+    se nikaale, kabhi client-supplied param se nahi (multi-tenant isolation).
+
+    Response rows mein sirf listing ke liye zaroori columns hain
+    (job_id, filename, status, total_rows, created_at) — file_path jaisa
+    internal server path kabhi return nahi hota.
+    """
+    page = max(1, page)
+    limit = max(1, min(limit, 100))
+    offset = (page - 1) * limit
+
+    clean_q = (q or "").strip()
+    use_search = len(clean_q) >= 2
+
+    where_clauses = ["user_id = %(user_id)s"]
+    params = {"user_id": user_id, "limit": limit, "offset": offset}
+
+    if use_search:
+        params["q"] = clean_q
+        params["exact"] = clean_q
+        params["prefix"] = clean_q + "%"
+        params["substr"] = f"%{clean_q}%"
+        where_clauses.append("(filename ILIKE %(substr)s OR similarity(filename, %(q)s) > 0.2)")
+
+    if status:
+        params["status"] = status
+        where_clauses.append("status = %(status)s")
+
+    if date_from:
+        params["date_from"] = date_from
+        where_clauses.append("created_at >= %(date_from)s")
+
+    if date_to:
+        params["date_to"] = date_to
+        where_clauses.append("created_at <= %(date_to)s")
+
+    where_sql = " AND ".join(where_clauses)
+
+    if use_search:
+        rank_select = """
+            CASE
+                WHEN filename ILIKE %(exact)s THEN 4
+                WHEN filename ILIKE %(prefix)s THEN 3
+                WHEN filename ILIKE %(substr)s THEN 2
+                ELSE 1
+            END AS match_rank,
+            similarity(filename, %(q)s) AS sim_score,
+        """
+        order_sql = "ORDER BY match_rank DESC, sim_score DESC, created_at DESC"
+    else:
+        rank_select = ""
+        order_sql = "ORDER BY created_at DESC"
+
+    query = f"""
+        SELECT job_id, filename, status, total_rows, created_at,
+               {rank_select}
+               COUNT(*) OVER() AS total_count
+        FROM jobs
+        WHERE {where_sql}
+        {order_sql}
+        LIMIT %(limit)s OFFSET %(offset)s
+    """
+
+    conn = get_connection()
+    cur = _dict_cursor(conn)
+    cur.execute(query, params)
+    rows = cur.fetchall()
+    cur.close()
+    release_connection(conn)
+
+    items = [dict(r) for r in rows]
+    total = items[0]["total_count"] if items else 0
+    for it in items:
+        it.pop("total_count", None)
+        it.pop("match_rank", None)
+        it.pop("sim_score", None)
+
+    total_pages = max(1, (total + limit - 1) // limit)
+    return {"uploads": items, "page": page, "limit": limit, "total": total, "total_pages": total_pages}
 
 
 def create_pending_signup(email, name, username, password_hash, otp):
@@ -387,24 +479,6 @@ def update_user_password(email, password_hash):
     release_connection(conn)
 
 
-def init_sessions_table():
-    """Ab table init_db() ke andar bhi ban jaati hai, ye function sirf backward-compatibility ke liye rakha hai."""
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS sessions (
-            session_id TEXT PRIMARY KEY,
-            user_id INTEGER NOT NULL,
-            created_at TEXT NOT NULL,
-            expires_at TEXT NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        );
-    """)
-    conn.commit()
-    cur.close()
-    release_connection(conn)
-
-
 def create_session(session_id, user_id, expires_at):
     conn = get_connection()
     cur = conn.cursor()
@@ -447,6 +521,14 @@ def get_user_by_id(user_id):
 
 
 # ---------- Password reset helpers (Forgot Password — link-based) ----------
+# SECURITY: token DB mein PLAINTEXT nahi, SHA-256 hash store hota hai.
+# Agar kabhi DB leak ho, purane reset links directly usable nahi honge
+# (bilkul password_hash jaisa hi principle — bearer secret ko hash karke
+# store karo, raw value sirf email mein bheja jaata hai).
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
 
 def create_password_reset(token, email, expires_at):
     conn = get_connection()
@@ -454,7 +536,7 @@ def create_password_reset(token, email, expires_at):
     cur.execute("""
         INSERT INTO password_resets (token, email, created_at, expires_at)
         VALUES (%s, %s, %s, %s)
-    """, (token, email, now_iso(), expires_at))
+    """, (_hash_token(token), email, now_iso(), expires_at))
     conn.commit()
     cur.close()
     release_connection(conn)
@@ -463,7 +545,7 @@ def create_password_reset(token, email, expires_at):
 def get_password_reset(token):
     conn = get_connection()
     cur = _dict_cursor(conn)
-    cur.execute("SELECT * FROM password_resets WHERE token = %s", (token,))
+    cur.execute("SELECT * FROM password_resets WHERE token = %s", (_hash_token(token),))
     row = cur.fetchone()
     cur.close()
     release_connection(conn)
@@ -473,7 +555,7 @@ def get_password_reset(token):
 def delete_password_reset(token):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("DELETE FROM password_resets WHERE token = %s", (token,))
+    cur.execute("DELETE FROM password_resets WHERE token = %s", (_hash_token(token),))
     conn.commit()
     cur.close()
     release_connection(conn)
