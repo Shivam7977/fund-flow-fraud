@@ -1,0 +1,35 @@
+# Runtime dependencies only (app + Render deploy). Python 3.12.
+# Notebook / training packages are in requirements-dev.txt.
+
+# --- Web framework ---
+fastapi==0.141.1
+starlette==1.6.0
+uvicorn==0.52.4
+pydantic==2.13.5
+Jinja2==3.1.6
+python-multipart==0.0.32
+itsdangerous==2.2.0
+email-validator==2.3.0
+python-dotenv==1.2.3
+
+# --- Auth ---
+Authlib==1.8.0
+httpx==0.28.1
+bcrypt==5.0.0
+resend==2.42.0
+
+# --- Database ---
+psycopg2-binary==2.9.12
+
+# --- ML / data (versions must match the ones the models were saved with) ---
+numpy==2.4.6
+pandas==3.0.3
+scipy==1.17.1
+scikit-learn==1.9.0
+joblib==1.5.3
+xgboost==3.2.0
+
+# --- Graph + reports ---
+networkx==3.6.1
+pyvis==0.3.2
+reportlab==4.5.1

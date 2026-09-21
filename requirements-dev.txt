@@ -1,0 +1,11 @@
+# Notebooks / training only. Install with: pip install -r requirements-dev.txt
+-r requirements.txt
+
+jupyter==1.1.1
+ipykernel==7.2.0
+ipywidgets==8.1.8
+matplotlib==3.10.9
+seaborn==0.13.2
+imbalanced-learn==0.14.2
+shap==0.52.0
+Faker==40.22.0

@@ -6,6 +6,7 @@ import pandas as pd
 import xgboost as xgb
 from config import settings
 from core.db import get_account_history
+from core.explain_labels import describe_feature
 
 # ---------- Load once, at import time ----------
 
@@ -38,6 +39,10 @@ RBI_STRUCTURING_MIN = 40000
 RBI_STRUCTURING_MAX = 49999
 RBI_CTR_THRESHOLD = 1000000
 RBI_RTGS_MIN = 200000
+
+# Explanation settings
+TOP_N_REASONS = 5          # UI mein kitne top features dikhane hain
+MIN_SHAP_ABS = 1e-6        # isse chhota contribution "zero" maan ke skip karo
 
 
 # ---------- Feature building ----------
@@ -161,9 +166,67 @@ def build_features(txn: dict, batch_history: list = None) -> pd.DataFrame:
     return pd.DataFrame([row])
 
 
+# ---------- Explanation (SHAP) ----------
+
+def _xgb_contribs(model, X: pd.DataFrame) -> pd.Series:
+    """
+    XGBoost ka built-in TreeSHAP (pred_contribs=True) — exact SHAP values,
+    `shap` library install kiye bina (Render pe light rehta hai).
+    Values log-odds space mein hoti hain. Last column bias (base value) hoti
+    hai, wo kisi feature ki nahi, isliye hata dete hain.
+    """
+    raw = model.get_booster().predict(xgb.DMatrix(X), pred_contribs=True)
+    return pd.Series(raw[0][:-1], index=X.columns)
+
+
+def explain_features(features_full: pd.DataFrame) -> dict:
+    """
+    Ensemble ke XGBoost hisse (V2 + Exp3) ka weighted SHAP explanation.
+    Isolation Forest ko explain nahi karte (wo unsupervised anomaly score hai).
+
+    Combine karna: dono models ki contributions ko unke ensemble weights se
+    normalize karke jodte hain. Ye approximation hai (ensemble asli mein
+    probability space mein blend hota hai), lekin "kaunse features ne score
+    ko upar/neeche dhakela" ranking ke liye sahi kaam karta hai.
+    """
+    X_full = features_full[FEATURES_XGB2]
+    X_exp3 = features_full[FEATURES_EXP3]
+
+    c2 = _xgb_contribs(xgb_v2, X_full)
+    c3 = _xgb_contribs(xgb_exp3, X_exp3)
+
+    w_sum = WEIGHTS["xgboost_v2"] + WEIGHTS["xgboost_exp3"]
+    w2 = WEIGHTS["xgboost_v2"] / w_sum
+    w3 = WEIGHTS["xgboost_exp3"] / w_sum
+
+    # Exp3 mein 2 features kam hain (type_UPI, has_mismatch) — unka c3 hissa 0
+    combined = c2 * w2 + c3.reindex(c2.index, fill_value=0.0) * w3
+
+    top = combined.reindex(combined.abs().sort_values(ascending=False).index)[:TOP_N_REASONS]
+
+    row = features_full.iloc[0]
+    items = []
+    for name, shap_val in top.items():
+        if abs(shap_val) < MIN_SHAP_ABS:
+            continue
+        value = float(row[name])
+        items.append({
+            "feature": name,
+            "value": round(value, 4),
+            "shap": round(float(shap_val), 4),
+            "direction": "fraud" if shap_val > 0 else "normal",   # + = fraud ki taraf, - = normal ki taraf
+            "reason": describe_feature(name, value),
+        })
+
+    return {
+        "method": "TreeSHAP on XGBoost V2 + Exp3 (weighted)",
+        "top_features": items,
+    }
+
+
 # ---------- Prediction ----------
 
-def predict_ml(txn: dict, batch_history: list = None) -> dict:
+def predict_ml(txn: dict, batch_history: list = None, explain: bool = False) -> dict:
     features_full = build_features(txn, batch_history)
 
     # XGBoost V2 + Isolation Forest — full 30-feature set, training order se
@@ -192,10 +255,16 @@ def predict_ml(txn: dict, batch_history: list = None) -> dict:
     else:
         risk_level = "NORMAL"
 
-    return {
+    result = {
         "ml_score": round(ml_score, 4),
         "iso_score": round(iso_score_01, 4),
         "xgb2_score": round(xgb2_score, 4),
         "exp3_score": round(exp3_score, 4),
         "risk_level": risk_level,
     }
+
+    # Sirf jab caller maange — batch mein har row ke liye nahi chalana
+    if explain:
+        result["explanation"] = explain_features(features_full)
+
+    return result
