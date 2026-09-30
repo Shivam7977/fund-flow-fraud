@@ -6,6 +6,24 @@
 <style>
   .fade-up { opacity: 0; transform: translateY(16px); transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
   .fade-up.in { opacity: 1; transform: none; }
+
+  /* Why flagged — SHAP explanation bars (same look as Transaction Check page) */
+  .exp-toggle-btn { font-size: 11.5px; font-weight: 600; color: #1B6A7E; background: none; border: 1px solid #1B6A7E; border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+  .exp-toggle-btn:hover { background: rgba(27,106,126,0.08); }
+  .exp-detail-row td { background: #FAFAF7; padding: 14px 16px 16px !important; }
+  .exp-panel { }
+  .exp-title { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 10px; }
+  .exp-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .exp-bar-track { position: relative; flex: 0 0 84px; height: 8px; background: var(--border, #E5E4DE); border-radius: 999px; overflow: hidden; }
+  .exp-bar-fill { position: absolute; top: 0; bottom: 0; border-radius: 999px; }
+  .exp-bar-fill.fraud { left: 50%; background: var(--fraud-text); }
+  .exp-bar-fill.normal { right: 50%; background: #3F9A5C; }
+  .exp-bar-mid { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: rgba(0,0,0,0.15); }
+  .exp-reason { font-size: 12.5px; line-height: 1.4; color: #2a2a2a; }
+  .exp-reason .exp-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; padding: 1px 6px; border-radius: 999px; margin-right: 6px; }
+  .exp-tag.fraud { background: var(--fraud-bg); color: var(--fraud-text); }
+  .exp-tag.normal { background: #E7F5EC; color: #3F9A5C; }
+  .exp-method { font-size: 11px; color: var(--text-muted); margin: 10px 0 0; }
 </style>
 {% endblock %}
 
@@ -78,6 +96,58 @@
     return isNaN(n) ? String(v) : "₹" + n.toLocaleString("en-IN");
   }
 
+  // "Why flagged?" — SHAP explanation bars, same rendering as the Transaction Check page.
+  // currentFlagged rows ka reference yahan rakha hai taaki toggle click par dobara fetch
+  // na karna pade — data already loadJob() mein aa chuka hota hai.
+  let currentFlagged = [];
+
+  function renderExplanationPanel(explanation, hasHistory) {
+    const items = explanation && Array.isArray(explanation.top_features) ? explanation.top_features : [];
+    if (!items.length) {
+      return `<p style="font-size:12.5px; color: var(--text-muted); margin:0;">No explanation available for this transaction.</p>`;
+    }
+    const maxAbs = Math.max(...items.map(it => Math.abs(it.shap))) || 1;
+    const rows = items.map(it => {
+      const pct = Math.min(100, (Math.abs(it.shap) / maxAbs) * 50);
+      const dir = it.direction === "fraud" ? "fraud" : "normal";
+      const tagLabel = dir === "fraud" ? "Fraud ↑" : "Normal ↑";
+      return `
+        <div class="exp-row">
+          <div class="exp-bar-track">
+            <div class="exp-bar-mid"></div>
+            <div class="exp-bar-fill ${dir}" style="width:${pct}%;"></div>
+          </div>
+          <div class="exp-reason">
+            <span class="exp-tag ${dir}">${tagLabel}</span>${escapeHtml(it.reason)}
+          </div>
+        </div>`;
+    }).join("");
+
+    const historyNote = hasHistory
+      ? "This account has prior transaction history — fund-flow graph patterns also contributed to this score."
+      : "This is a new account with no prior transaction history — this score is based on the ML model alone.";
+
+    return `
+      <p class="exp-title">Why this score — top factors</p>
+      ${rows}
+      <p class="exp-method">${escapeHtml(explanation.method || "")}</p>
+      <p class="exp-method" style="margin-top:6px;">${escapeHtml(historyNote)}</p>`;
+  }
+
+  function toggleExplanation(idx, btn) {
+    const row = btn.closest("tr");
+    const next = row.nextElementSibling;
+    if (next && next.classList.contains("exp-detail-row")) {
+      next.remove();
+      btn.textContent = "Why flagged?";
+      return;
+    }
+    const item = currentFlagged[idx];
+    const panelHtml = renderExplanationPanel(item ? item.explanation : null, item ? item.has_history : null);
+    row.insertAdjacentHTML("afterend", `<tr class="exp-detail-row"><td colspan="6"><div class="exp-panel">${panelHtml}</div></td></tr>`);
+    btn.textContent = "Hide";
+  }
+
   async function loadJob() {
     try {
       const res = await fetch(`/uploads/${JOB_ID}`, { credentials: "include" });
@@ -117,6 +187,7 @@
       `;
 
       const flagged = predictions.filter(p => p.risk_level === "FRAUD" || p.risk_level === "REVIEW");
+      currentFlagged = flagged;
       const table = document.getElementById("predictions-table");
 
       if (job.status === "processing" || job.status === "pending_confirmation") {
@@ -126,15 +197,16 @@
       } else {
         table.innerHTML = `
           <table class="dash-table">
-            <thead><tr><th>Sender</th><th>Receiver</th><th>Type</th><th>Amount</th><th>Risk</th></tr></thead>
+            <thead><tr><th>Sender</th><th>Receiver</th><th>Type</th><th>Amount</th><th>Risk</th><th></th></tr></thead>
             <tbody>
-              ${flagged.map((p) => `
+              ${flagged.map((p, idx) => `
                 <tr>
                   <td>${escapeHtml(p.nameOrig)}</td>
                   <td>${escapeHtml(p.nameDest)}</td>
                   <td>${escapeHtml(p.type) || "—"}</td>
                   <td>${fmtAmount(p.amount_inr)}</td>
                   <td><span class="dash-badge ${badgeClass(p.risk_level)}">${p.risk_level}</span></td>
+                  <td><button type="button" class="exp-toggle-btn" onclick="toggleExplanation(${idx}, this)">Why flagged?</button></td>
                 </tr>`).join("")}
             </tbody>
           </table>`;

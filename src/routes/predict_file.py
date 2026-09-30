@@ -14,7 +14,7 @@ from core.db import (
     create_job, update_job, update_job_mapping, get_job, search_jobs, get_stale_pending_jobs,
     save_prediction, get_predictions_by_job, get_activity_summary, delete_job_and_predictions,
 )
-from core.csv_mapper import analyze_columns, SOFT_REQUIRED, SOFT_DEFAULTS
+from core.csv_mapper import analyze_columns, SOFT_REQUIRED, SOFT_DEFAULTS, resolve_time_fields
 from routes.predict import _combine
 
 router = APIRouter(prefix="/predict", tags=["predict"])
@@ -56,6 +56,11 @@ def process_file_job(job_id: str, file_path: str, mapping: dict, user_id, is_gue
         fraud_count = review_count = normal_count = 0
 
         for _, r in df.iterrows():
+            # hour/day_of_week/day: explicit column > ek poore timestamp column se
+            # derive > SOFT_DEFAULTS. Isse "timestamp" jaisa ek hi column wali
+            # real-world CSVs bhi sahi se time-based features paati hain, sabke
+            # liye 00:00/Monday default nahi lagta.
+            hour, day_of_week, day = resolve_time_fields(r, mapping)
             txn = {
                 "nameOrig": str(r[mapping["nameOrig"]]),
                 "nameDest": str(r[mapping["nameDest"]]),
@@ -63,12 +68,16 @@ def process_file_job(job_id: str, file_path: str, mapping: dict, user_id, is_gue
                 "txn_type": str(r[mapping["txn_type"]]),
                 "oldbalance_inr": float(r[mapping["oldbalance_inr"]]) if mapping.get("oldbalance_inr") else SOFT_DEFAULTS["oldbalance_inr"],
                 "newbalance_inr": float(r[mapping["newbalance_inr"]]) if mapping.get("newbalance_inr") else SOFT_DEFAULTS["newbalance_inr"],
-                "hour": int(r[mapping["hour"]]) if mapping.get("hour") else SOFT_DEFAULTS["hour"],
-                "day_of_week": int(r[mapping["day_of_week"]]) if mapping.get("day_of_week") else SOFT_DEFAULTS["day_of_week"],
-                "day": int(r[mapping["day"]]) if mapping.get("day") else SOFT_DEFAULTS["day"],
+                "hour": hour,
+                "day_of_week": day_of_week,
+                "day": day,
             }
 
-            ml_result = predict_ml(txn, batch_history=seen_txns)
+            # explain=True: SHAP hamesha compute hota hai (sasta — ek extra XGBoost
+            # predict call), taaki get_account_history() ko dobara call na karna pade
+            # sirf explanation ke liye. Neeche sirf FRAUD/REVIEW ka explanation save
+            # hota hai, DB size control ke liye.
+            ml_result = predict_ml(txn, batch_history=seen_txns, explain=True)
             graph_result = score_graph(
                 txn["nameOrig"],
                 new_txn={
@@ -88,13 +97,16 @@ def process_file_job(job_id: str, file_path: str, mapping: dict, user_id, is_gue
             else:
                 normal_count += 1
 
+            explanation = ml_result.get("explanation") if risk_level in ("FRAUD", "REVIEW") else None
+
             if not is_guest:
                 to_save.append(dict(
                     user_id=user_id, nameOrig=txn["nameOrig"], nameDest=txn["nameDest"],
                     amount_inr=txn["amount_inr"], hour=txn["hour"], day=txn["day"],
                     txn_type=txn["txn_type"], ml_score=ml_result["ml_score"],
                     graph_score=graph_result["graph_score"], final_score=final_score,
-                    risk_level=risk_level, job_id=job_id,
+                    risk_level=risk_level, job_id=job_id, explanation=explanation,
+                    has_history=graph_result["has_history"],
                 ))
 
             seen_txns.append({

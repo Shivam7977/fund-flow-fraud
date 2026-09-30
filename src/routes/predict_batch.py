@@ -28,7 +28,11 @@ def predict_batch(batch: BatchTransactionsIn, request: Request):
     for txn in batch.transactions:
         # NOTE: get_account_history() (DB se) is batch ke pehle-save-hue transactions kabhi
         # nahi dekhega, kyunki hum save END mein kar rahe hain — sirf seen_txns hi context deta hai
-        ml_result = predict_ml(txn.model_dump(), batch_history=seen_txns)
+        # explain=True: SHAP hamesha compute hota hai (ek extra XGBoost predict call, sasta hai),
+        # taaki har row ke liye get_account_history() ko dobara call na karna pade agar hum
+        # sirf flagged rows ke liye alag se explanation banate. Neeche sirf FRAUD/REVIEW
+        # rows ke explanation ko save/response mein rakha jaata hai (DB size control ke liye).
+        ml_result = predict_ml(txn.model_dump(), batch_history=seen_txns, explain=True)
 
         graph_result = score_graph(
             txn.nameOrig,
@@ -43,6 +47,10 @@ def predict_batch(batch: BatchTransactionsIn, request: Request):
             ml_result["ml_score"], graph_result["graph_score"], graph_result["has_history"]
         )
 
+        # Sirf flagged rows ka explanation rakhte hain — NORMAL rows ke liye discard,
+        # taaki DB mein bewajah bada JSONB na bhare.
+        explanation = ml_result.get("explanation") if risk_level in ("FRAUD", "REVIEW") else None
+
         results.append({
             "nameOrig": txn.nameOrig,
             "nameDest": txn.nameDest,
@@ -51,6 +59,8 @@ def predict_batch(batch: BatchTransactionsIn, request: Request):
             "ml_score": ml_result["ml_score"],
             "graph_score": graph_result["graph_score"],
             "graph_flags": graph_result["flags"],
+            "explanation": explanation,
+            "has_history": graph_result["has_history"],
         })
 
         if not is_guest:
@@ -59,7 +69,7 @@ def predict_batch(batch: BatchTransactionsIn, request: Request):
                 amount_inr=txn.amount_inr, hour=txn.hour, day=txn.day,
                 txn_type=txn.txn_type, ml_score=ml_result["ml_score"],
                 graph_score=graph_result["graph_score"], final_score=final_score,
-                risk_level=risk_level,
+                risk_level=risk_level, explanation=explanation, has_history=graph_result["has_history"],
             ))
 
         # Agle transaction ke liye batch context mein daal do

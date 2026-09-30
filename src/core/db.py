@@ -30,11 +30,25 @@ def _get_pool():
 
 
 def get_connection(retries: int = 3, delay: float = 0.5):
-    """Pool se connection leta hai, transient network/SSL blips ke liye retry-with-backoff ke saath."""
+    """Pool se connection leta hai, transient network/SSL blips ke liye retry-with-backoff ke saath.
+    Pre-ping: Aiven inactivity pe connection band kar deta hai, aur pool ko iska pata
+    nahi chalta — isliye connection dene se pehle ek halka SELECT 1 se zinda hai ya
+    nahi check karte hain. Dead mile to use discard karke pool se nayi connection lete hain.
+    """
     last_err = None
     for attempt in range(retries):
         try:
-            return _get_pool().getconn()
+            conn = _get_pool().getconn()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT 1")
+                return conn
+            except psycopg2.OperationalError:
+                try:
+                    _get_pool().putconn(conn, close=True)  # dead connection discard, pool mein wapas mat do
+                except Exception:
+                    pass
+                raise
         except psycopg2.OperationalError as e:
             last_err = e
             if attempt < retries - 1:
@@ -168,6 +182,15 @@ def init_db():
     cur.execute('ALTER TABLE predictions ADD COLUMN IF NOT EXISTS job_id TEXT;')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_pred_job_id ON predictions(job_id);')
 
+    # ---- SHAP explanation: top features + reasons JSON mein (sirf flagged/single predictions ke liye bharta hai) ----
+    cur.execute('ALTER TABLE predictions ADD COLUMN IF NOT EXISTS explanation JSONB;')
+
+    # has_history: is transaction ke waqt sender ke paas pehle se koi transaction
+    # history thi ya nahi — batata hai ki final_score sirf ML se aaya (cold-start)
+    # ya graph_score bhi usme mila hua tha. Frontend explanation panel mein isi se
+    # "why graph score was/wasn't used" wali line banti hai.
+    cur.execute('ALTER TABLE predictions ADD COLUMN IF NOT EXISTS has_history BOOLEAN;')
+
     # ---- History search (fuzzy, typo-tolerant) + fast per-user listing ----
     cur.execute('CREATE EXTENSION IF NOT EXISTS pg_trgm;')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_jobs_filename_trgm ON jobs USING GIN (filename gin_trgm_ops);')
@@ -185,16 +208,20 @@ def now_iso():
 # ---------- Prediction helpers ----------
 
 def save_prediction(user_id, nameOrig, nameDest, amount_inr, hour, day,
-                     txn_type, ml_score, graph_score, final_score, risk_level, job_id=None):
+                     txn_type, ml_score, graph_score, final_score, risk_level, job_id=None,
+                     explanation=None, has_history=None):
+    # explanation = dict (ml_engine.explain_features ka output) ya None.
+    # psycopg2.extras.Json dict ko JSONB mein sahi tarah se convert karta hai.
+    explanation_json = psycopg2.extras.Json(explanation) if explanation else None
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
         INSERT INTO predictions
         (user_id, "nameOrig", "nameDest", amount_inr, hour, day, type,
-         ml_score, graph_score, final_score, risk_level, "isFraud_label", predicted_at, job_id)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s, %s)
+         ml_score, graph_score, final_score, risk_level, "isFraud_label", predicted_at, job_id, explanation, has_history)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s, %s, %s, %s)
     """, (user_id, nameOrig, nameDest, amount_inr, hour, day, txn_type,
-          ml_score, graph_score, final_score, risk_level, now_iso(), job_id))
+          ml_score, graph_score, final_score, risk_level, now_iso(), job_id, explanation_json, has_history))
     conn.commit()
     cur.close()
     release_connection(conn)
@@ -203,8 +230,13 @@ def save_prediction(user_id, nameOrig, nameDest, amount_inr, hour, day,
 def get_account_history(account_id):
     conn = get_connection()
     cur = _dict_cursor(conn)
+    # PERF: SELECT * nahi — explanation JSONB bada hota hai aur ye function har
+    # transaction ke velocity/graph check mein chalta hai, isliye usko yahan skip karte hain.
     cur.execute("""
-        SELECT * FROM predictions
+        SELECT id, user_id, "nameOrig", "nameDest", amount_inr, hour, day, type,
+               ml_score, graph_score, final_score, risk_level, "isFraud_label",
+               predicted_at, job_id
+        FROM predictions
         WHERE "nameOrig" = %s OR "nameDest" = %s
         ORDER BY predicted_at DESC
     """, (account_id, account_id))

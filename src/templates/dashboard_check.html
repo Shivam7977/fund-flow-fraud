@@ -7,6 +7,21 @@
   .dash-form label .req { color: var(--fraud-text); margin-left: 2px; }
   .fade-up { opacity: 0; transform: translateY(16px); transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
   .fade-up.in { opacity: 1; transform: none; }
+
+  /* Why flagged — SHAP explanation bars */
+  .exp-panel { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border, #E5E4DE); }
+  .exp-title { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 10px; }
+  .exp-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .exp-bar-track { position: relative; flex: 0 0 84px; height: 8px; background: var(--border, #E5E4DE); border-radius: 999px; overflow: hidden; }
+  .exp-bar-fill { position: absolute; top: 0; bottom: 0; border-radius: 999px; }
+  .exp-bar-fill.fraud { left: 50%; background: var(--fraud-text); }
+  .exp-bar-fill.normal { right: 50%; background: #3F9A5C; }
+  .exp-bar-mid { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: rgba(0,0,0,0.15); }
+  .exp-reason { font-size: 12.5px; line-height: 1.4; color: var(--text-primary, #2a2a2a); }
+  .exp-reason .exp-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; padding: 1px 6px; border-radius: 999px; margin-right: 6px; }
+  .exp-tag.fraud { background: var(--fraud-bg); color: var(--fraud-text); }
+  .exp-tag.normal { background: #E7F5EC; color: #3F9A5C; }
+  .exp-method { font-size: 11px; color: var(--text-muted); margin: 10px 0 0; }
 </style>
 {% endblock %}
 
@@ -160,6 +175,44 @@
     hour: "Hour", day_of_week: "Day of Week", day: "Day Number",
   };
 
+  // "Why flagged?" — top SHAP features ke liye horizontal bars + English reason
+  function renderExplanation(explanation, hasHistory) {
+    const items = explanation && Array.isArray(explanation.top_features) ? explanation.top_features : [];
+    if (!items.length) return "";
+
+    const maxAbs = Math.max(...items.map(it => Math.abs(it.shap))) || 1;
+
+    const rows = items.map(it => {
+      const pct = Math.min(100, (Math.abs(it.shap) / maxAbs) * 50); // half-track max (bar grows from center)
+      const dir = it.direction === "fraud" ? "fraud" : "normal";
+      const tagLabel = dir === "fraud" ? "Fraud ↑" : "Normal ↑";
+      return `
+        <div class="exp-row">
+          <div class="exp-bar-track">
+            <div class="exp-bar-mid"></div>
+            <div class="exp-bar-fill ${dir}" style="width:${pct}%;"></div>
+          </div>
+          <div class="exp-reason">
+            <span class="exp-tag ${dir}">${tagLabel}</span>${escapeHtml(it.reason)}
+          </div>
+        </div>`;
+    }).join("");
+
+    // has_history batata hai final_score sirf ML se bana (naya account, cold-start)
+    // ya fund-flow graph patterns bhi usme mile hue the.
+    const historyNote = hasHistory
+      ? "This account has prior transaction history — fund-flow graph patterns also contributed to this score."
+      : "This is a new account with no prior transaction history — this score is based on the ML model alone.";
+
+    return `
+      <div class="exp-panel">
+        <p class="exp-title">Why this score — top factors</p>
+        ${rows}
+        <p class="exp-method">${escapeHtml(explanation.method || "")}</p>
+        <p class="exp-method" style="margin-top:6px;">${escapeHtml(historyNote)}</p>
+      </div>`;
+  }
+
   const checkForm = document.getElementById("check-form");
   const checkError = document.getElementById("check-error");
   const checkSubmit = document.getElementById("check-submit");
@@ -223,6 +276,7 @@
           ${Array.isArray(data.graph_flags) && data.graph_flags.length
             ? `<div class="flags" style="margin-bottom:14px;">${data.graph_flags.map(f => `<span class="flag">${escapeHtml(f)}</span>`).join("")}</div>`
             : `<p style="font-size:12.5px; color: var(--text-muted); margin:0 0 14px;">No graph patterns flagged.</p>`}
+          ${renderExplanation(data.explanation, data.has_history)}
           ${defaultsUsed.length
             ? `<p style="font-size:11.5px; color: var(--review-text); background: var(--review-bg); padding:8px 12px; border-radius: var(--radius-sm); margin:0;">Defaulted: ${defaultsUsed.map(f => escapeHtml(FIELD_LABELS[f] || f)).join(", ")}</p>`
             : ""}

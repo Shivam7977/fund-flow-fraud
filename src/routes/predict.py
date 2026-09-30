@@ -85,7 +85,8 @@ def predict(txn: TransactionIn, request: Request):
 
     txn_data = txn.with_defaults()
 
-    ml_result = predict_ml(txn_data)
+    # explain=True: single check mein hamesha SHAP explanation chahiye (ek row, sasta hai)
+    ml_result = predict_ml(txn_data, explain=True)
 
     graph_result = score_graph(
         txn_data["nameOrig"],
@@ -104,6 +105,8 @@ def predict(txn: TransactionIn, request: Request):
             txn_type=txn_data["txn_type"], ml_score=ml_result["ml_score"],
             graph_score=graph_result["graph_score"], final_score=final_score,
             risk_level=risk_level,
+            explanation=ml_result.get("explanation"),
+            has_history=graph_result["has_history"],
         )
 
     return {
@@ -115,6 +118,8 @@ def predict(txn: TransactionIn, request: Request):
         "exp3_score": ml_result["exp3_score"],
         "graph_score": graph_result["graph_score"],
         "graph_flags": graph_result["flags"],
+        "explanation": ml_result.get("explanation"),
+        "has_history": graph_result["has_history"],
         "saved": not is_guest,
         # Transparency: tells the frontend exactly which soft fields were
         # left blank and got a predefined default instead of user data.
