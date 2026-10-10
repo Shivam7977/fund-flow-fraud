@@ -23,7 +23,7 @@ Most fraud checks judge a transaction in isolation. But real fraud hides in patt
 
 🔗 https://fraudfindergraph-e14t.onrender.com
 
-> 💡 Click **Guest mode** to try everything without signing up. The first load can take ~50 seconds (free hosting).
+> 💡 Click **Guest mode** to try everything without signing up.
 
 ---
 

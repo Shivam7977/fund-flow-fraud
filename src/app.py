@@ -1,11 +1,12 @@
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from config import settings
-from core.db import init_db
+from core.db import init_db, get_connection, release_connection
 from auth.routes import router as auth_router
 from routes.predict import router as predict_router
 from routes.predict_batch import router as predict_batch_router
@@ -58,6 +59,26 @@ app.include_router(pages_router)
 app.include_router(dashboard_pages_router)
 
 
-@app.get("/health")
+# Uptime-monitor endpoints. HEAD is allowed too, because some free monitors
+# (e.g. UptimeRobot) probe with HEAD and would otherwise get "405 Method Not Allowed".
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health():
+    """Lightweight liveness check (no database). Safe to use as Render's Health Check Path."""
     return {"status": "healthy"}
+
+
+@app.api_route("/health/db", methods=["GET", "HEAD"])
+def health_db():
+    """
+    Also touches PostgreSQL. get_connection() pre-pings the database, so a monitor
+    hitting this endpoint keeps the free Aiven instance awake as well, and reports
+    DOWN (503) if the database cannot be reached.
+    """
+    conn = None
+    try:
+        conn = get_connection()
+        return {"status": "healthy", "database": "up"}
+    except Exception:
+        return JSONResponse(status_code=503, content={"status": "unhealthy", "database": "down"})
+    finally:
+        release_connection(conn)
