@@ -1,0 +1,33 @@
+{
+  "n_test": 1272524,
+  "n_fraud": 1643,
+  "auc_isolation_forest": 0.8451,
+  "auc_xgboost_v2": 0.9997,
+  "auc_xgboost_exp3": 0.9997,
+  "ensemble_auc_roc": 0.9983,
+  "ensemble_pr_auc": 0.9555,
+  "precision": 0.8862,
+  "recall": 0.9008,
+  "f1": 0.8935,
+  "confusion_matrix": {
+    "tn": 1270691,
+    "fp": 190,
+    "fn": 163,
+    "tp": 1480
+  },
+  "review_band_count": 592,
+  "thresholds_used": {
+    "fraud": 0.748,
+    "review": 0.4488
+  },
+  "weights_used": {
+    "isolation_forest": 0.2971,
+    "xgboost_v2": 0.3515,
+    "xgboost_exp3": 0.3514
+  },
+  "versions": {
+    "scikit_learn": "1.9.0",
+    "xgboost": "3.2.0"
+  },
+  "caveat": "Weights, thresholds and ISO normalisation were derived from this same test set (no separate validation split); precision/recall/F1 are optimistic."
+}
