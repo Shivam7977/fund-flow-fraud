@@ -1,10 +1,16 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Literal, Optional
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
+# ml_engine.py ke TYPE_COLUMNS se match — model ne sirf inhi 5 categories pe
+# train kiya hai. "RTGS" jaanboojh kar isme nahi hai (training data mein kabhi
+# ek alag category nahi thi) — koi aur value aane par one-hot encoding
+# silently sab-zero ho jaata, jo model ne kabhi training mein nahi dekha tha.
+TxnType = Literal["ATM_WITHDRAWAL", "CASH_DEPOSIT", "NACH", "NEFT", "UPI"]
+
 from auth.routes import get_current_user
-from core.ml_engine import predict_ml
+from core.ml_engine import predict_ml, THRESHOLDS
 from core.graph_engine import score_graph
 from core.db import save_prediction
 from core.csv_mapper import SOFT_DEFAULTS  # single source of truth for "we don't have this" fallbacks
@@ -19,7 +25,7 @@ class TransactionIn(BaseModel):
     nameOrig: str
     nameDest: str
     amount_inr: float
-    txn_type: str          # ATM_WITHDRAWAL / CASH_DEPOSIT / NACH / NEFT / UPI
+    txn_type: TxnType
 
     # ---- Optional — matches SOFT_REQUIRED in core/csv_mapper.py ----
     # If the caller doesn't have this data, it's None here and
@@ -54,23 +60,35 @@ class TransactionIn(BaseModel):
 
 FINAL_ML_WEIGHT = 0.6
 FINAL_GRAPH_WEIGHT = 0.4
+# NOTE: yeh ML-vs-graph blend weight hai, ensemble_config.json ke
+# andar ke ML-internal weights (isolation_forest/xgboost_v2/exp3) se alag —
+# retrain se yeh automatically update nahi hota, jaanboojh kar manual hai.
 
 
 def _combine(ml_score: float, graph_score: float, has_history: bool) -> tuple[float, str]:
-    if has_history:
+    # Fix 3: has_history=True ka matlab sirf itna hai ki account ki purani
+    # transactions maujood hain — iska matlab NAHI ki graph ko unmein kuch
+    # suspicious mila. Agar graph_score == 0 (history hai par saaf hai), to
+    # blend mein daalne se ML ke apne score ko bewajah 40% tak dilute kar deta
+    # tha (0.6*ml + 0.4*0 = 0.6*ml). Ab dono cases — cold-start (history hi
+    # nahi) aur "history but clean" (history hai, graph ko kuch nahi mila) —
+    # ko ek jaisa treat karte hain: sirf ML pe bharosa karo.
+    if has_history and graph_score > 0:
         blend = FINAL_ML_WEIGHT * ml_score + FINAL_GRAPH_WEIGHT * graph_score
         # Fix 2: agar graph akela hi bahut confident hai (severe pattern jaisa
         # structuring/round_trip), to weighted blend use neeche mat khींchne do.
         # "Agar koi ek detector strongly bolta hai fraud hai, to flag karo" —
         # average karke dabana nahi.
-        final_score = round(max(blend, graph_score), 4)
+        # ml_score bhi isi max() mein rakha hai, taaki ek confident ML score
+        # bhi kabhi galti se neeche na khinche — graph sirf score ko UPAR
+        # dhakel sakta hai, kabhi neeche nahi.
+        final_score = round(max(blend, graph_score, ml_score), 4)
     else:
-        # Cold-start: graph ke paas koi opinion nahi, sirf ML pe decide karo
         final_score = round(ml_score, 4)
 
-    if final_score >= 0.7262:
+    if final_score >= THRESHOLDS["fraud"]:
         risk_level = "FRAUD"
-    elif final_score >= 0.4357:
+    elif final_score >= THRESHOLDS["review"]:
         risk_level = "REVIEW"
     else:
         risk_level = "NORMAL"
@@ -107,6 +125,7 @@ def predict(txn: TransactionIn, request: Request):
             risk_level=risk_level,
             explanation=ml_result.get("explanation"),
             has_history=graph_result["has_history"],
+            graph_flags=graph_result["flags"],
         )
 
     return {

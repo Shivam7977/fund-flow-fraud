@@ -58,6 +58,25 @@ def build_local_subgraph(account_id: str, new_txn: dict = None, batch_txns: list
     return G_local, df_local, has_history   # 👈 teesra value return karo
 
 
+def build_batch_graph(new_txn: dict = None, batch_txns: list = None) -> nx.DiGraph:
+    """
+    Round-trip (multi-hop cycle, A->B->C->A) detection ke liye poora batch ka
+    multi-account graph banata hai — ek account ka star-subgraph nahi, balki
+    saare accounts ke beech ka actual network. Sirf batch_txns (isi file-
+    upload/batch request ke andar ka data, already memory mein) use karta
+    hai, koi extra DB call nahi. Isliye DB-persisted, alag-alag samay par
+    hui cross-account history se bana round-trip isse nahi pakda jaata —
+    yeh ek documented limitation hai.
+    """
+    rows = list(batch_txns or [])
+    if new_txn:
+        rows.append(new_txn)
+    if not rows:
+        return nx.DiGraph()
+    df = pd.DataFrame(rows)
+    return nx.from_pandas_edgelist(df, source="nameOrig", target="nameDest", create_using=nx.DiGraph())
+
+
 def detect_round_trip(G: nx.DiGraph) -> list:
     """A -> B -> C -> A jaise cycles, max 4 hops tak."""
     cycles = []
@@ -108,38 +127,65 @@ def detect_structuring(df_local: pd.DataFrame, account_id: str) -> dict | None:
 def score_graph(account_id: str, new_txn: dict = None, batch_txns: list = None) -> dict:
     G_local, df_local, has_history = build_local_subgraph(account_id, new_txn, batch_txns)
 
-    if not has_history:
-        return {"graph_score": 0.0, "flags": [], "has_history": False}
-
     flags = []
     severities = []
 
-    cycles = detect_round_trip(G_local)
-    if cycles:
-        flags.append({"pattern": "round_trip", "count": len(cycles)})
-        severities.append(PATTERN_SEVERITY["round_trip"])
+    if has_history:
+        # Fix (multi-hop round-trip): G_local sirf account_id ka star-subgraph
+        # hai (sirf wahi edges jo isi account ko touch karte hain) — isme
+        # A->B->C->A jaisa 3-node cycle KABHI nahi ban sakta, kyunki beech ka
+        # B->C edge kisi aur account se dikh hi nahi raha. Isliye round-trip
+        # ko poore batch ke multi-account graph (build_batch_graph) pe check
+        # karte hain, phir sirf un cycles ko ginte hain jisme yeh account
+        # khud shamil hai.
+        G_batch = build_batch_graph(new_txn, batch_txns)
+        cycles = [c for c in detect_round_trip(G_batch) if account_id in c]
+        if cycles:
+            flags.append({"pattern": "round_trip", "count": len(cycles)})
+            severities.append(PATTERN_SEVERITY["round_trip"])
 
-    fan_out = detect_fan_out(df_local, account_id)
-    if fan_out:
-        flags.append(fan_out)
-        severities.append(PATTERN_SEVERITY["fan_out"])
+        fan_out = detect_fan_out(df_local, account_id)
+        if fan_out:
+            flags.append(fan_out)
+            severities.append(PATTERN_SEVERITY["fan_out"])
 
-    fan_in = detect_fan_in(df_local, account_id)
-    if fan_in:
-        flags.append(fan_in)
-        severities.append(PATTERN_SEVERITY["fan_in"])
+        structuring = detect_structuring(df_local, account_id)
+        if structuring:
+            flags.append(structuring)
+            severities.append(PATTERN_SEVERITY["structuring"])
 
-    structuring = detect_structuring(df_local, account_id)
-    if structuring:
-        flags.append(structuring)
-        severities.append(PATTERN_SEVERITY["structuring"])
+    # Fix (fan-in): fan_in ek RECEIVER-side pattern hai ("kitne alag senders
+    # se ek account paisa le raha hai"), lekin score_graph() hamesha
+    # transaction ke SENDER (account_id) ke liye call hota hai — isliye
+    # receiver ka apna accumulating fan-in kabhi check hi nahi hota tha,
+    # chahe woh account sirf receive hi karta ho (jaise ek mule-collection
+    # account jo khud kabhi sender na bana ho). Sender ki apni history se
+    # independent check karte hain. NOTE: isse ek extra get_account_history()
+    # DB call lagta hai har prediction mein (receiver ke liye) — yeh
+    # jaanboojh kar accept kiya gaya cost hai, taaki fan-in genuinely kaam kare.
+    if new_txn and new_txn.get("nameDest"):
+        receiver_id = new_txn["nameDest"]
+        _, df_recv, recv_has_history = build_local_subgraph(receiver_id, new_txn, batch_txns)
+        if recv_has_history:
+            fan_in = detect_fan_in(df_recv, receiver_id)
+            if fan_in:
+                flags.append(fan_in)
+                severities.append(PATTERN_SEVERITY["fan_in"])
 
     # Fix 1: sabse severe pattern ki value lo (max), sabko average karke dilute mat karo.
     # Ek akela strong pattern (jaise structuring) bhi apni asli severity dikhayega.
     graph_score = max(severities) if severities else 0.0
 
+    # has_history sirf SENDER ki apni history ko reflect karta hai (jaisa
+    # pehle tha, routes/predict.py ka _combine() isi par based hai). Agar
+    # sender ke paas khud koi history nahi thi lekin fan-in ne kuch pakda
+    # (flags non-empty), to has_history ko bhi True kar dete hain — warna
+    # _combine() ka "has_history and graph_score > 0" check fail ho jaata
+    # aur fan-in ka pakda hua signal final score mein kabhi use hi na hota.
+    has_history = has_history or bool(flags)
+
     return {
         "graph_score": round(graph_score, 4),
         "flags": flags,
-        "has_history": True,
+        "has_history": has_history,
     }

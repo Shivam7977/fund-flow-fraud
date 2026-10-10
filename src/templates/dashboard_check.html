@@ -64,7 +64,6 @@
               <select id="txn_type" name="txn_type" required>
                 <option value="UPI">UPI</option>
                 <option value="NEFT">NEFT</option>
-                <option value="RTGS">RTGS</option>
                 <option value="NACH">NACH</option>
                 <option value="ATM_WITHDRAWAL">ATM Withdrawal</option>
                 <option value="CASH_DEPOSIT">Cash Deposit</option>
@@ -175,8 +174,21 @@
     hour: "Hour", day_of_week: "Day of Week", day: "Day Number",
   };
 
+  // graph_engine.py ke flags list mein dicts hote hain (e.g. {pattern:"structuring", count:3}),
+  // plain string nahi — isliye seedha escapeHtml(f) karne se "[object Object]" aata tha.
+  function describeGraphFlag(f) {
+    if (!f || typeof f !== "object") return escapeHtml(String(f));
+    switch (f.pattern) {
+      case "round_trip": return `Round-trip fund flow detected (${f.count} cycle${f.count === 1 ? "" : "s"} found)`;
+      case "fan_out": return `Sent to ${f.unique_receivers} different accounts in one day (fan-out pattern)`;
+      case "fan_in": return `Received from ${f.unique_senders} different accounts in one day (fan-in pattern)`;
+      case "structuring": return `${f.count} transactions in the ₹40,000–49,999 structuring range`;
+      default: return escapeHtml(f.pattern || JSON.stringify(f));
+    }
+  }
+
   // "Why flagged?" — top SHAP features ke liye horizontal bars + English reason
-  function renderExplanation(explanation, hasHistory) {
+  function renderExplanation(explanation, hasHistory, graphScore) {
     const items = explanation && Array.isArray(explanation.top_features) ? explanation.top_features : [];
     if (!items.length) return "";
 
@@ -198,11 +210,17 @@
         </div>`;
     }).join("");
 
-    // has_history batata hai final_score sirf ML se bana (naya account, cold-start)
-    // ya fund-flow graph patterns bhi usme mile hue the.
-    const historyNote = hasHistory
-      ? "This account has prior transaction history — fund-flow graph patterns also contributed to this score."
-      : "This is a new account with no prior transaction history — this score is based on the ML model alone.";
+    // Teen cases: (1) naya account — ML akela; (2) history hai par graph ko
+    // kuch suspicious nahi mila (graph_score 0) — ML akela; (3) history hai
+    // aur graph ne genuinely kuch pakda — dono mile hue.
+    let historyNote;
+    if (!hasHistory) {
+      historyNote = "This is a new account with no prior transaction history — this score is based on the ML model alone.";
+    } else if (graphScore > 0) {
+      historyNote = "This account has prior transaction history, and fund-flow graph patterns also contributed to this score.";
+    } else {
+      historyNote = "This account has prior transaction history, but no suspicious fund-flow pattern was found — this score is based on the ML model alone.";
+    }
 
     return `
       <div class="exp-panel">
@@ -274,9 +292,9 @@
             <div class="score-box"><div class="k">Saved</div><div class="v" style="font-size:12px;">${data.saved ? "Yes" : "Guest"}</div></div>
           </div>
           ${Array.isArray(data.graph_flags) && data.graph_flags.length
-            ? `<div class="flags" style="margin-bottom:14px;">${data.graph_flags.map(f => `<span class="flag">${escapeHtml(f)}</span>`).join("")}</div>`
+            ? `<div class="flags" style="margin-bottom:14px;">${data.graph_flags.map(f => `<span class="flag">${describeGraphFlag(f)}</span>`).join("")}</div>`
             : `<p style="font-size:12.5px; color: var(--text-muted); margin:0 0 14px;">No graph patterns flagged.</p>`}
-          ${renderExplanation(data.explanation, data.has_history)}
+          ${renderExplanation(data.explanation, data.has_history, data.graph_score)}
           ${defaultsUsed.length
             ? `<p style="font-size:11.5px; color: var(--review-text); background: var(--review-bg); padding:8px 12px; border-radius: var(--radius-sm); margin:0;">Defaulted: ${defaultsUsed.map(f => escapeHtml(FIELD_LABELS[f] || f)).join(", ")}</p>`
             : ""}

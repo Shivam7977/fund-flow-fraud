@@ -1,12 +1,12 @@
 {
   "weights": {
-    "isolation_forest": 0.3129,
-    "xgboost_v2": 0.3436,
-    "xgboost_exp3": 0.3435
+    "isolation_forest": 0.2971,
+    "xgboost_v2": 0.3515,
+    "xgboost_exp3": 0.3514
   },
   "thresholds": {
-    "fraud": 0.7262,
-    "review": 0.4357
+    "fraud": 0.748,
+    "review": 0.4488
   },
   "features": {
     "xgboost_v2": [
@@ -20,15 +20,9 @@
       "balance_after_zero",
       "oldbalance_inr",
       "newbalance_inr",
-      "balance_mismatch",
-      "has_mismatch",
       "is_structuring",
       "is_ctr_threshold",
       "is_rtgs_range",
-      "sender_txn_count",
-      "sender_total_amount",
-      "receiver_txn_count",
-      "receiver_total_amount",
       "type_ATM_WITHDRAWAL",
       "type_CASH_DEPOSIT",
       "type_NACH",
@@ -52,14 +46,9 @@
       "balance_after_zero",
       "oldbalance_inr",
       "newbalance_inr",
-      "balance_mismatch",
       "is_structuring",
       "is_ctr_threshold",
       "is_rtgs_range",
-      "sender_txn_count",
-      "sender_total_amount",
-      "receiver_txn_count",
-      "receiver_total_amount",
       "type_ATM_WITHDRAWAL",
       "type_CASH_DEPOSIT",
       "type_NACH",
@@ -73,7 +62,7 @@
     ]
   },
   "iso_normalization": {
-    "min": -0.2751,
-    "max": 0.0823
+    "min": -0.238,
+    "max": 0.0971
   }
 }

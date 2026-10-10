@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 from config import settings
-from core.db import get_account_history
 from core.explain_labels import describe_feature
 
 # ---------- Load once, at import time ----------
@@ -63,30 +62,6 @@ def _get_account_type(account_id: str, override: str | None = None) -> str:
     return ACCOUNT_TYPE_MAP.get(account_id, "savings")
 
 
-def _get_velocity(account_id: str, batch_history: list = None):
-    """
-    Persisted DB se is account ki ab tak ki transactions count/sum.
-    batch_history = isi request ke batch mein pehle process ho chuke
-    transactions (abhi DB mein save nahi hue, but velocity mein count
-    hone chahiye taaki same-request structuring/velocity patterns miss
-    na hon).
-    Naya account → 0, 0 (cold start — expected, not an error).
-    """
-    history = get_account_history(account_id)
-    sent = [h for h in history if h["nameOrig"] == account_id]
-    received = [h for h in history if h["nameDest"] == account_id]
-
-    if batch_history:
-        sent += [b for b in batch_history if b["nameOrig"] == account_id]
-        received += [b for b in batch_history if b["nameDest"] == account_id]
-
-    return {
-        "sender_txn_count": len(sent),
-        "sender_total_amount": sum(h["amount_inr"] for h in sent),
-        "receiver_txn_count": len(received),
-        "receiver_total_amount": sum(h["amount_inr"] for h in received),
-    }
-
 
 def build_features(txn: dict, batch_history: list = None) -> pd.DataFrame:
     """
@@ -101,7 +76,8 @@ def build_features(txn: dict, batch_history: list = None) -> pd.DataFrame:
       type is looked up from the static ACCOUNT_TYPE_MAP as before.
 
     batch_history = optional list of transactions processed earlier in
-    the same /predict-batch request (see ml_engine._get_velocity).
+    the same /predict-batch request (currently unused here — graph_engine.py
+    uses it for pattern detection; kept as a param for API consistency).
     """
     amount_inr = float(txn["amount_inr"])
     oldbalance_inr = float(txn["oldbalance_inr"])
@@ -141,11 +117,11 @@ def build_features(txn: dict, batch_history: list = None) -> pd.DataFrame:
     row["is_ctr_threshold"] = int(amount_inr >= RBI_CTR_THRESHOLD)
     row["is_rtgs_range"] = int(amount_inr >= RBI_RTGS_MIN)
 
-    # Velocity features (from persisted DB history + same-batch context)
-    row.update(_get_velocity(txn["nameOrig"], batch_history))
-    receiver_velocity = _get_velocity(txn["nameDest"], batch_history)
-    row["receiver_txn_count"] = receiver_velocity["receiver_txn_count"]
-    row["receiver_total_amount"] = receiver_velocity["receiver_total_amount"]
+    # NOTE: Velocity features (sender/receiver_txn_count, total_amount) removed
+    # from here — retrain ke baad ensemble_config.json ke feature-list se hi
+    # hata diye gaye the (SHAP investigation mein future-info leakage nikla
+    # tha), isliye inhe yahan compute karna sirf 2 bekaar get_account_history()
+    # DB calls tha har prediction mein, jinka result kabhi use hi nahi hota tha.
 
     # One-hot: transaction type
     for col in TYPE_COLUMNS:

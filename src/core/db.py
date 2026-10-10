@@ -191,6 +191,11 @@ def init_db():
     # "why graph score was/wasn't used" wali line banti hai.
     cur.execute('ALTER TABLE predictions ADD COLUMN IF NOT EXISTS has_history BOOLEAN;')
 
+    # graph_flags: kaunse fund-flow graph patterns (round_trip/fan_out/fan_in/
+    # structuring) trigger hue — pehle sirf graph_score save hota tha, flags nahi,
+    # isliye "Why flagged" panel graph ka reason kabhi dikha hi nahi pata tha.
+    cur.execute('ALTER TABLE predictions ADD COLUMN IF NOT EXISTS graph_flags JSONB;')
+
     # ---- History search (fuzzy, typo-tolerant) + fast per-user listing ----
     cur.execute('CREATE EXTENSION IF NOT EXISTS pg_trgm;')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_jobs_filename_trgm ON jobs USING GIN (filename gin_trgm_ops);')
@@ -209,19 +214,23 @@ def now_iso():
 
 def save_prediction(user_id, nameOrig, nameDest, amount_inr, hour, day,
                      txn_type, ml_score, graph_score, final_score, risk_level, job_id=None,
-                     explanation=None, has_history=None):
+                     explanation=None, has_history=None, graph_flags=None):
     # explanation = dict (ml_engine.explain_features ka output) ya None.
-    # psycopg2.extras.Json dict ko JSONB mein sahi tarah se convert karta hai.
+    # graph_flags = list of dicts (graph_engine.score_graph()'s "flags") ya None.
+    # psycopg2.extras.Json dict/list ko JSONB mein sahi tarah se convert karta hai.
     explanation_json = psycopg2.extras.Json(explanation) if explanation else None
+    graph_flags_json = psycopg2.extras.Json(graph_flags) if graph_flags else None
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
         INSERT INTO predictions
         (user_id, "nameOrig", "nameDest", amount_inr, hour, day, type,
-         ml_score, graph_score, final_score, risk_level, "isFraud_label", predicted_at, job_id, explanation, has_history)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s, %s, %s, %s)
+         ml_score, graph_score, final_score, risk_level, "isFraud_label", predicted_at, job_id,
+         explanation, has_history, graph_flags)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, %s, %s, %s, %s, %s)
     """, (user_id, nameOrig, nameDest, amount_inr, hour, day, txn_type,
-          ml_score, graph_score, final_score, risk_level, now_iso(), job_id, explanation_json, has_history))
+          ml_score, graph_score, final_score, risk_level, now_iso(), job_id,
+          explanation_json, has_history, graph_flags_json))
     conn.commit()
     cur.close()
     release_connection(conn)

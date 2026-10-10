@@ -26,19 +26,27 @@ def predict_batch(batch: BatchTransactionsIn, request: Request):
                          # warna DB history + batch context dono se same txn double-count ho jaata
 
     for txn in batch.transactions:
+        # BUG FIX: txn.model_dump() raw Pydantic fields deta hai — agar koi
+        # optional field (oldbalance_inr/hour/day_of_week/day) caller ne nahi
+        # di, woh None rehta tha, aur build_features() mein float(None) se
+        # crash ho jaata tha. with_defaults() single-/predict aur /predict-file
+        # dono jaisa hi SOFT_DEFAULTS laga deta hai — ab teeno entry-points
+        # consistent hain.
+        txn_data = txn.with_defaults()
+
         # NOTE: get_account_history() (DB se) is batch ke pehle-save-hue transactions kabhi
         # nahi dekhega, kyunki hum save END mein kar rahe hain — sirf seen_txns hi context deta hai
         # explain=True: SHAP hamesha compute hota hai (ek extra XGBoost predict call, sasta hai),
         # taaki har row ke liye get_account_history() ko dobara call na karna pade agar hum
         # sirf flagged rows ke liye alag se explanation banate. Neeche sirf FRAUD/REVIEW
         # rows ke explanation ko save/response mein rakha jaata hai (DB size control ke liye).
-        ml_result = predict_ml(txn.model_dump(), batch_history=seen_txns, explain=True)
+        ml_result = predict_ml(txn_data, batch_history=seen_txns, explain=True)
 
         graph_result = score_graph(
-            txn.nameOrig,
+            txn_data["nameOrig"],
             new_txn={
-                "nameOrig": txn.nameOrig, "nameDest": txn.nameDest,
-                "amount_inr": txn.amount_inr, "day": txn.day, "hour": txn.hour,
+                "nameOrig": txn_data["nameOrig"], "nameDest": txn_data["nameDest"],
+                "amount_inr": txn_data["amount_inr"], "day": txn_data["day"], "hour": txn_data["hour"],
             },
             batch_txns=seen_txns,
         )
@@ -65,17 +73,20 @@ def predict_batch(batch: BatchTransactionsIn, request: Request):
 
         if not is_guest:
             to_save.append(dict(
-                user_id=user_id, nameOrig=txn.nameOrig, nameDest=txn.nameDest,
-                amount_inr=txn.amount_inr, hour=txn.hour, day=txn.day,
-                txn_type=txn.txn_type, ml_score=ml_result["ml_score"],
+                user_id=user_id, nameOrig=txn_data["nameOrig"], nameDest=txn_data["nameDest"],
+                amount_inr=txn_data["amount_inr"], hour=txn_data["hour"], day=txn_data["day"],
+                txn_type=txn_data["txn_type"], ml_score=ml_result["ml_score"],
                 graph_score=graph_result["graph_score"], final_score=final_score,
                 risk_level=risk_level, explanation=explanation, has_history=graph_result["has_history"],
+                graph_flags=graph_result["flags"],
             ))
 
-        # Agle transaction ke liye batch context mein daal do
+        # Agle transaction ke liye batch context mein daal do — txn_data (defaults-applied)
+        # use karna zaroori hai, warna ek None hour/day seen_txns mein chala jaata aur
+        # graph_engine.py ke .get("hour", 0) ko bhi dhokha deta (key maujood hai, value None).
         seen_txns.append({
-            "nameOrig": txn.nameOrig, "nameDest": txn.nameDest,
-            "amount_inr": txn.amount_inr, "day": txn.day, "hour": txn.hour,
+            "nameOrig": txn_data["nameOrig"], "nameDest": txn_data["nameDest"],
+            "amount_inr": txn_data["amount_inr"], "day": txn_data["day"], "hour": txn_data["hour"],
         })
 
     # Ab poora batch process ho chuka — sabko ek saath DB mein save karo

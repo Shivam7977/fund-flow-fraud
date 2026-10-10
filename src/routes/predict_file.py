@@ -40,6 +40,15 @@ class ConfirmIn(BaseModel):
     proceed_with_defaults: bool = False      # true = missing optional fields ko default value se chalao
 
 
+def _public_job_view(job: dict) -> dict:
+    """
+    get_job() poora DB row deta hai, jisme file_path (server ka internal
+    filesystem path) bhi hota hai. Client ko kabhi internal path dikhana
+    sahi nahi — yahi principle search_jobs() mein bhi follow hota hai.
+    """
+    return {k: v for k, v in job.items() if k != "file_path"}
+
+
 # ---------- Background processing ----------
 
 def process_file_job(job_id: str, file_path: str, mapping: dict, user_id, is_guest: bool):
@@ -106,7 +115,7 @@ def process_file_job(job_id: str, file_path: str, mapping: dict, user_id, is_gue
                     txn_type=txn["txn_type"], ml_score=ml_result["ml_score"],
                     graph_score=graph_result["graph_score"], final_score=final_score,
                     risk_level=risk_level, job_id=job_id, explanation=explanation,
-                    has_history=graph_result["has_history"],
+                    has_history=graph_result["has_history"], graph_flags=graph_result["flags"],
                 ))
 
             seen_txns.append({
@@ -235,6 +244,16 @@ def confirm_file(job_id: str, body: ConfirmIn, request: Request, background_task
     user = get_current_user(request)
     is_guest = user is None or user.get("guest") is True
 
+    # SECURITY: agar job ek real (logged-in) user ne upload ki thi, sirf wahi
+    # user ise confirm kar sake — warna koi bhi doosra caller kisi aur ke
+    # pending job ko apni mapping/defaults ke saath confirm kar sakta tha.
+    # Guest-uploaded jobs (user_id None) ke liye koi reliable per-guest
+    # identity nahi hai abhi, isliye wahan yeh check nahi laga (low severity —
+    # job_id ek hard-to-guess UUID hai, aur guest ka result kahin persist
+    # bhi nahi hota).
+    if job["user_id"] is not None and (is_guest or user["id"] != job["user_id"]):
+        raise HTTPException(status_code=404, detail="Job not found or already processed")
+
     stored_mapping = json.loads(job["column_mapping"]) if job.get("column_mapping") else {}
     if body.column_mapping:
         stored_mapping.update(body.column_mapping)
@@ -257,10 +276,15 @@ def confirm_file(job_id: str, body: ConfirmIn, request: Request, background_task
 
 @router.get("/file/{job_id}")
 def get_file_job_status(job_id: str):
+    # NOTE: jaanboojh kar unauthenticated hai — guest bhi apne job_id se
+    # status poll kar sake (guest ke paas login nahi, /uploads/{job_id} use
+    # nahi kar sakta). job_id ek hard-to-guess UUID hai, isliye isse kaam
+    # chal jaata hai, lekin internal file_path kabhi bhi kisi ko nahi
+    # dikhna chahiye — isliye _public_job_view() se filter karte hain.
     job = get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return job
+    return _public_job_view(job)
 
 
 # ---------- Upload history (search + filter + pagination, unified) ----------
@@ -301,7 +325,7 @@ def get_upload_detail(job_id: str, request: Request):
     if not job or job["user_id"] != user["id"]:
         raise HTTPException(status_code=404, detail="Upload not found")
 
-    return {"job": job, "predictions": get_predictions_by_job(job_id)}
+    return {"job": _public_job_view(job), "predictions": get_predictions_by_job(job_id)}
 
 
 @uploads_router.delete("/uploads/{job_id}")
