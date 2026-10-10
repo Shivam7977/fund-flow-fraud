@@ -18,7 +18,9 @@ class Settings:
 
     # Static baseline data
     STATIC_CSV_PATH: str = str(BASE_DIR / "data" / "fraud_graph_data.csv")
-    ACCOUNT_TYPE_MAP_PATH: str = str(BASE_DIR / "data" / "account_type_map.json")
+    ACCOUNT_TYPE_MAP_PATH: str = str(BASE_DIR / "data" / "account_type_map.json")  # sirf local (70MB, git mein nahi)
+    ACCOUNT_TYPE_NPZ_PATH: str = str(BASE_DIR / "data" / "account_type_map.npz")   # compact, git mein jayega
+    ACCOUNT_TYPE_EXTRAS_PATH: str = str(BASE_DIR / "data" / "account_type_extras.json")
 
     # Models
     MODELS_DIR: str = str(BASE_DIR / "models")

@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import joblib
 import numpy as np
@@ -27,8 +28,30 @@ xgb_v2.load_model(os.path.join(settings.MODELS_DIR, "xgb_v2_compatible.json"))
 xgb_exp3 = xgb.XGBClassifier()
 xgb_exp3.load_model(os.path.join(settings.MODELS_DIR, "xgb_exp3_compatible.json"))
 
-with open(settings.ACCOUNT_TYPE_MAP_PATH) as f:
-    ACCOUNT_TYPE_MAP = json.load(f)
+# Account types: 70 MB JSON dict RAM mein ~300MB+ leta tha (Render free = 512MB).
+# Ab compact format: sirf NON-savings accounts, sorted int array + searchsorted.
+# "savings" pehle se default tha (.get(..., "savings")), isliye behavior same hai.
+# Banane ke liye: python scripts/compact_account_map.py
+_ACCT_ID_RE = re.compile(r"^([CM])(\d+)$")
+_acct_npz = np.load(settings.ACCOUNT_TYPE_NPZ_PATH, allow_pickle=False)
+_ACCT_KEYS = _acct_npz["keys"]                      # sorted int64
+_ACCT_VALS = _acct_npz["vals"]                      # uint8 index -> _ACCT_TYPE_NAMES
+_ACCT_TYPE_NAMES = [str(t) for t in _acct_npz["type_names"]]
+with open(settings.ACCOUNT_TYPE_EXTRAS_PATH) as f:
+    _ACCT_EXTRAS = json.load(f)                     # non-standard IDs (chhota)
+
+
+def _lookup_account_type(account_id: str) -> str:
+    if account_id in _ACCT_EXTRAS:
+        return _ACCT_EXTRAS[account_id]
+    m = _ACCT_ID_RE.match(account_id)
+    if not m or str(int(m.group(2))) != m.group(2):
+        return "savings"
+    key = int(m.group(2)) * 2 + (1 if m.group(1) == "M" else 0)
+    i = int(np.searchsorted(_ACCT_KEYS, key))
+    if i < len(_ACCT_KEYS) and _ACCT_KEYS[i] == key:
+        return _ACCT_TYPE_NAMES[int(_ACCT_VALS[i])]
+    return "savings"
 
 TYPE_COLUMNS = ["type_ATM_WITHDRAWAL", "type_CASH_DEPOSIT", "type_NACH", "type_NEFT", "type_UPI"]
 ACCT_COLUMNS = ["acct_business", "acct_current", "acct_jan_dhan", "acct_savings", "acct_student"]
@@ -59,7 +82,7 @@ def _get_account_type(account_id: str, override: str | None = None) -> str:
     """
     if override and override in VALID_ACCOUNT_TYPES:
         return override
-    return ACCOUNT_TYPE_MAP.get(account_id, "savings")
+    return _lookup_account_type(account_id)
 
 
 

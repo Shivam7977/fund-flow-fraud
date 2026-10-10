@@ -1,10 +1,17 @@
 # Virtual environment
 venv/
+.venv/
 
-# Large data files
-data/
+# Large data files (local only - too big for GitHub / Render)
+data/*
 *.csv
 *.pkl
+
+# Generated at runtime (never commit)
+src/static/graphs/*.html
+notebooks/lib/
+*.db
+*.sqlite3
 
 # Python cache
 __pycache__/
@@ -20,3 +27,7 @@ __pycache__/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Small runtime files that ARE committed (keep these LAST)
+!data/account_type_map.npz
+!data/account_type_extras.json
