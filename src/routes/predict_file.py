@@ -1,9 +1,12 @@
 import os
 import json
 import uuid
+import tempfile
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Request, UploadFile, File, BackgroundTasks, HTTPException, Query
+from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 from pydantic import BaseModel
 
 from config import settings
@@ -15,6 +18,7 @@ from core.db import (
     save_prediction, get_predictions_by_job, get_activity_summary, delete_job_and_predictions,
 )
 from core.csv_mapper import analyze_columns, SOFT_REQUIRED, SOFT_DEFAULTS, resolve_time_fields
+from core.pdf_report import generate_job_report_pdf
 from routes.predict import _combine
 
 router = APIRouter(prefix="/predict", tags=["predict"])
@@ -326,6 +330,48 @@ def get_upload_detail(job_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Upload not found")
 
     return {"job": _public_job_view(job), "predictions": get_predictions_by_job(job_id)}
+
+
+@uploads_router.get("/uploads/{job_id}/report")
+def download_job_report(job_id: str, request: Request):
+    """
+    Job ka PDF investigation report. Login-required hai — guest ke
+    predictions kabhi DB mein save hi nahi hote, isliye unka report
+    banane ke liye data maujood hi nahi hota. PDF kabhi store nahi hoti,
+    har baar on-demand banake turant bhej di jaati hai, response jaate hi
+    temp file BackgroundTask se delete ho jaati hai.
+    """
+    user = get_current_user(request)
+    if user is None or user.get("guest") is True:
+        raise HTTPException(status_code=401, detail="Login required to download reports")
+
+    job = get_job(job_id)
+    if not job or job["user_id"] != user["id"]:
+        raise HTTPException(status_code=404, detail="Upload not found")
+
+    predictions = get_predictions_by_job(job_id)
+
+    fd, tmp_path = tempfile.mkstemp(suffix=".pdf", dir=TMP_UPLOAD_DIR)
+    os.close(fd)
+    try:
+        generate_job_report_pdf(job, predictions, tmp_path)
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
+
+    # filename user-uploaded CSV ka original naam hai (user-controlled) — yeh
+    # ek HTTP response header (Content-Disposition) mein jaata hai, isliye
+    # sirf safe characters rakhte hain (koi path separator, quote, ya CRLF
+    # header-injection risk nahi).
+    import re as _re
+    raw_name = (job.get("filename") or job_id).rsplit(".", 1)[0]
+    safe_name = _re.sub(r"[^A-Za-z0-9_-]", "_", raw_name)[:40] or "report"
+    download_name = f"fraud-report-{safe_name}-{job_id[:8]}.pdf"
+    return FileResponse(
+        tmp_path, media_type="application/pdf", filename=download_name,
+        background=BackgroundTask(os.remove, tmp_path),
+    )
 
 
 @uploads_router.delete("/uploads/{job_id}")

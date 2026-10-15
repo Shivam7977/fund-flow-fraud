@@ -44,6 +44,10 @@
         <h1 id="job-title" style="margin-top:4px;">Loading…</h1>
         <p id="job-meta"></p>
       </div>
+      <a id="report-download-btn" href="/uploads/{{ job_id }}/report" style="display:none;"
+         class="dash-btn dash-btn-dark" download>
+        Download PDF Report
+      </a>
     </div>
 
     <div class="dash-job-summary fade-up in" id="job-summary">
@@ -192,6 +196,9 @@
       let metaText = `Status: ${job.status.toUpperCase()}`;
       if (job.status === "failed" && job.error_message) metaText += ` — ${job.error_message}`;
       document.getElementById("job-meta").textContent = metaText;
+
+      // Report sirf tab chahiye jab job poori tarah process ho chuki ho
+      document.getElementById("report-download-btn").style.display = job.status === "done" ? "inline-flex" : "none";
 
       let fraud = 0, review = 0, normal = 0;
       if (job.result_summary) {
