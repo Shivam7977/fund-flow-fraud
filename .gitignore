@@ -31,3 +31,6 @@ Thumbs.db
 # Small runtime files that ARE committed (keep these LAST)
 !data/account_type_map.npz
 !data/account_type_extras.json
+
+# don't push zip files 
+*.zip

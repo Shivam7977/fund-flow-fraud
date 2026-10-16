@@ -1,0 +1,156 @@
+{
+  "n_tune": 636262,
+  "n_tune_fraud": 822,
+  "n_holdout": 636262,
+  "n_holdout_fraud": 821,
+  "holdout_seed": 0,
+  "derived_on_tune": {
+    "weights": {
+      "isolation_forest": 0.2976,
+      "xgboost_v2": 0.3512,
+      "xgboost_exp3": 0.3512
+    },
+    "iso_range": [
+      -0.238,
+      0.0971
+    ]
+  },
+  "results": [
+    {
+      "model": "xgboost_v2 alone",
+      "pr_auc": 0.9671,
+      "roc_auc": 0.9997,
+      "threshold": 0.9966,
+      "precision": 0.921,
+      "recall": 0.866,
+      "f1": 0.8927,
+      "tp": 711,
+      "fp": 61,
+      "fn": 110,
+      "tn": 635380,
+      "ci_95": {
+        "precision": [
+          0.9034,
+          0.9373
+        ],
+        "recall": [
+          0.8449,
+          0.8866
+        ],
+        "f1": [
+          0.8788,
+          0.9056
+        ]
+      }
+    },
+    {
+      "model": "xgboost_exp3 alone",
+      "pr_auc": 0.9495,
+      "roc_auc": 0.9996,
+      "threshold": 0.9999,
+      "precision": 0.9325,
+      "recall": 0.7905,
+      "f1": 0.8556,
+      "tp": 649,
+      "fp": 47,
+      "fn": 172,
+      "tn": 635394,
+      "ci_95": {
+        "precision": [
+          0.9137,
+          0.9489
+        ],
+        "recall": [
+          0.7647,
+          0.8153
+        ],
+        "f1": [
+          0.8365,
+          0.8734
+        ]
+      }
+    },
+    {
+      "model": "xgboost v2+exp3 average",
+      "pr_auc": 0.9704,
+      "roc_auc": 0.9996,
+      "threshold": 0.9911,
+      "precision": 0.8813,
+      "recall": 0.9318,
+      "f1": 0.9059,
+      "tp": 765,
+      "fp": 103,
+      "fn": 56,
+      "tn": 635338,
+      "ci_95": {
+        "precision": [
+          0.8596,
+          0.9022
+        ],
+        "recall": [
+          0.9171,
+          0.9504
+        ],
+        "f1": [
+          0.8918,
+          0.9203
+        ]
+      }
+    },
+    {
+      "model": "ensemble re-tuned on tune half",
+      "pr_auc": 0.9542,
+      "roc_auc": 0.9981,
+      "threshold": 0.7475,
+      "precision": 0.8855,
+      "recall": 0.8952,
+      "f1": 0.8904,
+      "tp": 735,
+      "fp": 95,
+      "fn": 86,
+      "tn": 635346,
+      "ci_95": {
+        "precision": [
+          0.8618,
+          0.9073
+        ],
+        "recall": [
+          0.8718,
+          0.9181
+        ],
+        "f1": [
+          0.8736,
+          0.9046
+        ]
+      }
+    },
+    {
+      "model": "ensemble shipped config (optimistic ref.)",
+      "pr_auc": 0.9542,
+      "roc_auc": 0.9981,
+      "threshold": 0.748,
+      "precision": 0.8855,
+      "recall": 0.8952,
+      "f1": 0.8904,
+      "tp": 735,
+      "fp": 95,
+      "fn": 86,
+      "tn": 635346,
+      "ci_95": {
+        "precision": [
+          0.8618,
+          0.9073
+        ],
+        "recall": [
+          0.8718,
+          0.9181
+        ],
+        "f1": [
+          0.8736,
+          0.9046
+        ]
+      }
+    }
+  ],
+  "caveat": "Weights, ISO range and thresholds were re-derived on the 'tune' half of the original test set and metrics are reported on the 'holdout' half. Model hyperparameters and feature choices were still made while looking at the full test set, so these numbers are mildly optimistic."
+}

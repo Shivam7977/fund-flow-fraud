@@ -15,8 +15,8 @@ with open(os.path.join(settings.MODELS_DIR, "ensemble_config.json")) as f:
 
 WEIGHTS = CONFIG["weights"]
 THRESHOLDS = CONFIG["thresholds"]
-FEATURES_XGB2 = CONFIG["features"]["xgboost_v2"]      # 30 features, in training order
-FEATURES_EXP3 = CONFIG["features"]["xgboost_exp3"]     # 28 features, in training order
+FEATURES_XGB2 = CONFIG["features"]["xgboost_v2"]      # 24 features, in training order
+FEATURES_EXP3 = CONFIG["features"]["xgboost_exp3"]     # 23 features, in training order
 ISO_MIN = CONFIG["iso_normalization"]["min"]
 ISO_MAX = CONFIG["iso_normalization"]["max"]
 
