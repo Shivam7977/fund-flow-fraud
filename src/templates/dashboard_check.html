@@ -180,8 +180,8 @@
     if (!f || typeof f !== "object") return escapeHtml(String(f));
     switch (f.pattern) {
       case "round_trip": return `Round-trip fund flow detected (${f.count} cycle${f.count === 1 ? "" : "s"} found)`;
-      case "fan_out": return `Sent to ${f.unique_receivers} different accounts in one day (fan-out pattern)`;
-      case "fan_in": return `Received from ${f.unique_senders} different accounts in one day (fan-in pattern)`;
+      case "fan_out": return `Sent to ${f.unique_receivers} different accounts within ${f.window_hours || 24} hours (fan-out pattern)`;
+      case "fan_in": return `Received from ${f.unique_senders} different accounts within ${f.window_hours || 24} hours (fan-in pattern)`;
       case "structuring": return `${f.count} transactions in the ₹40,000–49,999 structuring range`;
       default: return escapeHtml(f.pattern || JSON.stringify(f));
     }

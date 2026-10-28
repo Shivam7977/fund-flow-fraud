@@ -8,6 +8,13 @@ STRUCTURING_MIN = 40000
 STRUCTURING_MAX = 49999
 STRUCTURING_MIN_COUNT = 3
 
+# Time bound: har pattern sirf ek WINDOW_HOURS (24h) ke andar ginta hai.
+# Time = day*24 + hour. Agar CSV mein sirf date hai (hour nahi), hour 0 default
+# hota hai, to 24h window (strict <) apne aap "same date" ban jaata hai.
+# Agar date bhi nahi hai, saari rows day 0 par hoti hain -> window kuch filter
+# nahi kar sakti (documented limitation).
+WINDOW_HOURS = 24
+
 # Fix 1: har pattern ki apni real severity — divide-by-3 jaisa dilution nahi.
 # Ek akela strong pattern (jaise structuring) bhi apni asli seriousness dikhayega.
 PATTERN_SEVERITY = {
@@ -16,6 +23,29 @@ PATTERN_SEVERITY = {
     "fan_out": 0.7,
     "fan_in": 0.7,
 }
+
+
+def _abs_hours(day, hour) -> float:
+    try:
+        return float(day or 0) * 24 + float(hour or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _windows(df: pd.DataFrame, anchor):
+    """
+    Har possible WINDOW_HOURS-wide window ke rows yield karta hai. Agar anchor
+    (naye transaction ka time) diya hai, to sirf wahi windows jo anchor ko
+    contain karti hain — taaki purana, ab-irrelevant pattern har naye
+    transaction ko flag na kare, aur batch ka order sorted hona zaroori na ho.
+    """
+    if df.empty:
+        return
+    starts = sorted(df["t"].unique())
+    for s in starts:
+        if anchor is not None and not (anchor - WINDOW_HOURS < s <= anchor):
+            continue
+        yield df[(df["t"] >= s) & (df["t"] < s + WINDOW_HOURS)]
 
 
 def build_local_subgraph(account_id: str, new_txn: dict = None, batch_txns: list = None) -> tuple:
@@ -33,11 +63,13 @@ def build_local_subgraph(account_id: str, new_txn: dict = None, batch_txns: list
     rows = [{
         "nameOrig": h["nameOrig"], "nameDest": h["nameDest"],
         "amount_inr": h["amount_inr"], "day": h["day"], "hour": h["hour"],
+        "t": _abs_hours(h["day"], h["hour"]),
     } for h in history]
 
     rows += [{
         "nameOrig": t["nameOrig"], "nameDest": t["nameDest"],
         "amount_inr": t["amount_inr"], "day": t.get("day", 0), "hour": t.get("hour", 0),
+        "t": _abs_hours(t.get("day", 0), t.get("hour", 0)),
     } for t in batch_rows]
 
     if new_txn:
@@ -45,6 +77,7 @@ def build_local_subgraph(account_id: str, new_txn: dict = None, batch_txns: list
             "nameOrig": new_txn["nameOrig"], "nameDest": new_txn["nameDest"],
             "amount_inr": new_txn["amount_inr"],
             "day": new_txn.get("day", 0), "hour": new_txn.get("hour", 0),
+            "t": _abs_hours(new_txn.get("day", 0), new_txn.get("hour", 0)),
         })
 
     if not rows:
@@ -74,6 +107,11 @@ def build_batch_graph(new_txn: dict = None, batch_txns: list = None) -> nx.DiGra
     if not rows:
         return nx.DiGraph()
     df = pd.DataFrame(rows)
+    if new_txn:
+        # Time bound: sirf naye txn ke WINDOW_HOURS ke andar ki edges se cycle banna chahiye.
+        df["t"] = [_abs_hours(r.get("day", 0), r.get("hour", 0)) for r in rows]
+        t_new = _abs_hours(new_txn.get("day", 0), new_txn.get("hour", 0))
+        df = df[(df["t"] - t_new).abs() < WINDOW_HOURS]
     return nx.from_pandas_edgelist(df, source="nameOrig", target="nameDest", create_using=nx.DiGraph())
 
 
@@ -89,43 +127,39 @@ def detect_round_trip(G: nx.DiGraph) -> list:
     return cycles
 
 
-def detect_fan_out(df_local: pd.DataFrame, account_id: str) -> dict | None:
-    """Same din mein account ne kitne alag receivers ko bheja."""
+def detect_fan_out(df_local: pd.DataFrame, account_id: str, anchor=None) -> dict | None:
+    """WINDOW_HOURS ke andar account ne kitne alag receivers ko bheja."""
     sent = df_local[df_local["nameOrig"] == account_id]
-    if sent.empty:
-        return None
-    per_day = sent.groupby("day")["nameDest"].nunique()
-    max_day, max_count = per_day.idxmax(), per_day.max()
+    max_count = max((w["nameDest"].nunique() for w in _windows(sent, anchor)), default=0)
     if max_count >= FAN_DEGREE_THRESHOLD:
-        return {"pattern": "fan_out", "day": int(max_day), "unique_receivers": int(max_count)}
+        return {"pattern": "fan_out", "unique_receivers": int(max_count), "window_hours": WINDOW_HOURS}
     return None
 
 
-def detect_fan_in(df_local: pd.DataFrame, account_id: str) -> dict | None:
-    """Same din mein account ne kitne alag senders se receive kiya."""
+def detect_fan_in(df_local: pd.DataFrame, account_id: str, anchor=None) -> dict | None:
+    """WINDOW_HOURS ke andar account ne kitne alag senders se receive kiya."""
     received = df_local[df_local["nameDest"] == account_id]
-    if received.empty:
-        return None
-    per_day = received.groupby("day")["nameOrig"].nunique()
-    max_day, max_count = per_day.idxmax(), per_day.max()
+    max_count = max((w["nameOrig"].nunique() for w in _windows(received, anchor)), default=0)
     if max_count >= FAN_DEGREE_THRESHOLD:
-        return {"pattern": "fan_in", "day": int(max_day), "unique_senders": int(max_count)}
+        return {"pattern": "fan_in", "unique_senders": int(max_count), "window_hours": WINDOW_HOURS}
     return None
 
 
-def detect_structuring(df_local: pd.DataFrame, account_id: str) -> dict | None:
-    """RBI structuring zone (₹40k-49,999) mein baar baar transactions."""
+def detect_structuring(df_local: pd.DataFrame, account_id: str, anchor=None) -> dict | None:
+    """RBI structuring zone (₹40k-49,999) mein WINDOW_HOURS ke andar baar baar transactions."""
     sent = df_local[df_local["nameOrig"] == account_id]
     structured = sent[
         (sent["amount_inr"] >= STRUCTURING_MIN) & (sent["amount_inr"] <= STRUCTURING_MAX)
     ]
-    if len(structured) >= STRUCTURING_MIN_COUNT:
-        return {"pattern": "structuring", "count": len(structured)}
+    max_count = max((len(w) for w in _windows(structured, anchor)), default=0)
+    if max_count >= STRUCTURING_MIN_COUNT:
+        return {"pattern": "structuring", "count": int(max_count), "window_hours": WINDOW_HOURS}
     return None
 
 
 def score_graph(account_id: str, new_txn: dict = None, batch_txns: list = None) -> dict:
     G_local, df_local, has_history = build_local_subgraph(account_id, new_txn, batch_txns)
+    anchor = _abs_hours(new_txn.get("day", 0), new_txn.get("hour", 0)) if new_txn else None
 
     flags = []
     severities = []
@@ -144,12 +178,12 @@ def score_graph(account_id: str, new_txn: dict = None, batch_txns: list = None) 
             flags.append({"pattern": "round_trip", "count": len(cycles)})
             severities.append(PATTERN_SEVERITY["round_trip"])
 
-        fan_out = detect_fan_out(df_local, account_id)
+        fan_out = detect_fan_out(df_local, account_id, anchor)
         if fan_out:
             flags.append(fan_out)
             severities.append(PATTERN_SEVERITY["fan_out"])
 
-        structuring = detect_structuring(df_local, account_id)
+        structuring = detect_structuring(df_local, account_id, anchor)
         if structuring:
             flags.append(structuring)
             severities.append(PATTERN_SEVERITY["structuring"])
@@ -167,7 +201,7 @@ def score_graph(account_id: str, new_txn: dict = None, batch_txns: list = None) 
         receiver_id = new_txn["nameDest"]
         _, df_recv, recv_has_history = build_local_subgraph(receiver_id, new_txn, batch_txns)
         if recv_has_history:
-            fan_in = detect_fan_in(df_recv, receiver_id)
+            fan_in = detect_fan_in(df_recv, receiver_id, anchor)
             if fan_in:
                 flags.append(fan_in)
                 severities.append(PATTERN_SEVERITY["fan_in"])
