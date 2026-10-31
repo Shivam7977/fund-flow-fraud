@@ -484,10 +484,11 @@ Open [http://127.0.0.1:8000](http://127.0.0.1:8000). API docs are at `/docs`. Ta
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](https://github.com/Shivam7977/fund-flow-fraud?tab=MIT-1-ov-file).
 
 ## Developer
 
 Built by **Shivam Pandey**.
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?logo=linkedin)](https://www.linkedin.com/in/shivam-pandey-0336ba336/) [![Portfolio](https://img.shields.io/badge/Portfolio-Visit-green?logo=vercel)](https://shivam-ai-portfolio.netlify.app/) [![GitHub](https://img.shields.io/badge/GitHub-Follow-black?logo=github)](https://github.com/Shivam7977)
+
