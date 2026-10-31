@@ -484,7 +484,7 @@ Open [http://127.0.0.1:8000](http://127.0.0.1:8000). API docs are at `/docs`. Ta
 
 ## License
 
-MIT. See [LICENSE](https://github.com/Shivam7977/fund-flow-fraud?tab=MIT-1-ov-file).
+MIT. See [LICENSE](https://github.com/Shivam7977/fund-flow-fraud/blob/main/license).
 
 ## Developer
 
