@@ -37,14 +37,16 @@ app = FastAPI(
 # Session cookies (login/guest state) ke liye zaroori — Google OAuth aur session_id cookie dono isi pe depend karte hain
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 
-# CORS — abhi development mein sab allow, baad mein frontend domain specific kar denge
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS: the app serves its own pages (same origin), so no CORS by default.
+# Only the origins listed in CORS_ORIGINS (comma separated) are allowed, never "*".
+if settings.CORS_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "DELETE"],
+        allow_headers=["Content-Type"],
+    )
 
 # Frontend static files (CSS/JS) — src/static/ se serve honge
 app.mount("/static", StaticFiles(directory="static"), name="static")

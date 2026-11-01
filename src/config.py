@@ -1,4 +1,5 @@
 import os
+import secrets
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -9,9 +10,34 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 
+def _load_secret_key() -> str:
+    """
+    SECRET_KEY signs the session cookie used during Google OAuth.
+    - Set in env  -> use it.
+    - Missing on a deployed host (Render sets RENDER=true) -> refuse to start,
+      instead of silently running with a guessable default.
+    - Missing locally -> random per-run key (OAuth state just resets on restart).
+    """
+    key = os.getenv("SECRET_KEY", "").strip()
+    if key and key != "insecure-default-change-me":
+        return key
+    if os.getenv("RENDER") or os.getenv("ENVIRONMENT", "").lower() == "production":
+        raise RuntimeError(
+            "SECRET_KEY is not set. Add a long random value in the environment "
+            "(e.g. python -c \"import secrets; print(secrets.token_urlsafe(48))\")."
+        )
+    print("[config] SECRET_KEY not set - using a temporary random key for this run.")
+    return secrets.token_urlsafe(48)
+
+
 class Settings:
     # App
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "insecure-default-change-me")
+    SECRET_KEY: str = _load_secret_key()
+
+    # Cross-origin callers allowed to use the API from a browser. The app serves
+    # its own pages, so the default is none (same-origin only). Set e.g.
+    # CORS_ORIGINS="https://my-frontend.example.com" if a separate frontend is added.
+    CORS_ORIGINS: list = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
 
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
