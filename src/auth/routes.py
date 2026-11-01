@@ -8,7 +8,7 @@ from auth.models import (
     SignupRequest, OTPVerifyRequest, LoginRequest, SetPasswordRequest,
     ForgotPasswordRequest, ResetPasswordRequest, MessageResponse,
 )
-from auth.utils import hash_password, verify_password, generate_otp, is_otp_expired, generate_session_token
+from auth.utils import hash_password, verify_password, generate_otp, otp_matches, is_otp_expired, generate_session_token
 from auth.email_service import send_otp_email, send_password_reset_email
 from auth.google_oauth import get_google_redirect_url, handle_google_callback
 from core.db import (
@@ -50,6 +50,15 @@ def _check_rate_limit(request: Request, bucket_name: str, max_attempts: int = 5,
     bucket.append(now)
 
 
+# Wrong-OTP attempts per email. A 6-digit OTP has only 900,000 values, so
+# without a cap it can be brute-forced inside its 10-minute window. After
+# MAX_OTP_ATTEMPTS wrong guesses the pending signup is deleted and the user
+# must sign up again (which issues a fresh OTP). In-memory, same
+# single-process caveat as the rate limiter above.
+MAX_OTP_ATTEMPTS = 5
+_otp_attempts: dict[str, int] = defaultdict(int)
+
+
 def _set_session_cookie(request: Request, response: Response, user_id: int):
     session_id = generate_session_token()
     expires_at = (datetime.now(timezone.utc) + timedelta(seconds=settings.SESSION_MAX_AGE)).isoformat()
@@ -79,6 +88,7 @@ def signup(data: SignupRequest, request: Request):
 
     password_hash = hash_password(data.password)
     otp = generate_otp()
+    _otp_attempts.pop(data.email, None)  # new OTP, fresh attempt budget
     create_pending_signup(data.email, data.name, data.username, password_hash, otp)
 
     sent = send_otp_email(data.email, otp)
@@ -89,7 +99,9 @@ def signup(data: SignupRequest, request: Request):
 
 
 @router.post("/verify-otp", response_model=MessageResponse)
-def verify_otp(data: OTPVerifyRequest):
+def verify_otp(data: OTPVerifyRequest, request: Request):
+    _check_rate_limit(request, "verify-otp", max_attempts=10, window_seconds=300)
+
     pending = get_pending_signup(data.email)
     if not pending:
         raise HTTPException(400, "No pending signup was found for this email address")
@@ -98,8 +110,16 @@ def verify_otp(data: OTPVerifyRequest):
         delete_pending_signup(data.email)
         raise HTTPException(400, "The OTP has expired. Please sign up again")
 
-    if pending["otp"] != data.otp:
-        raise HTTPException(400, "Wrong OTP")
+    if not otp_matches(pending["otp"], data.otp):
+        _otp_attempts[data.email] += 1
+        left = MAX_OTP_ATTEMPTS - _otp_attempts[data.email]
+        if left <= 0:
+            delete_pending_signup(data.email)
+            _otp_attempts.pop(data.email, None)
+            raise HTTPException(400, "Too many wrong attempts. Please sign up again")
+        raise HTTPException(400, f"Wrong OTP. {left} attempt(s) left")
+
+    _otp_attempts.pop(data.email, None)
 
     create_user(
         name=pending["name"], email=data.email, username=pending["username"],

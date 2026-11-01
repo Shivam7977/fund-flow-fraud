@@ -1,5 +1,5 @@
 import bcrypt
-import random
+import hmac
 import secrets
 from datetime import datetime, timezone
 
@@ -17,7 +17,13 @@ def verify_password(password: str, hashed: str) -> bool:
 # ---------- OTP ----------
 
 def generate_otp() -> str:
-    return str(random.randint(100000, 999999))
+    # secrets (CSPRNG), not random: OTPs must not be predictable.
+    return str(secrets.randbelow(900000) + 100000)
+
+
+def otp_matches(expected: str, supplied: str) -> bool:
+    # Constant-time comparison.
+    return hmac.compare_digest(expected.encode("utf-8"), supplied.encode("utf-8"))
 
 
 def is_otp_expired(otp_created_at: str, max_age_minutes: int = 10) -> bool:
