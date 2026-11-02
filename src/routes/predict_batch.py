@@ -49,6 +49,7 @@ def predict_batch(batch: BatchTransactionsIn, request: Request):
                 "amount_inr": txn_data["amount_inr"], "day": txn_data["day"], "hour": txn_data["hour"],
             },
             batch_txns=seen_txns,
+            user_id=user_id,
         )
 
         final_score, risk_level = _combine(

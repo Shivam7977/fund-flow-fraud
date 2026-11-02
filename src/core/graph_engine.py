@@ -48,8 +48,10 @@ def _windows(df: pd.DataFrame, anchor):
         yield df[(df["t"] >= s) & (df["t"] < s + WINDOW_HOURS)]
 
 
-def build_local_subgraph(account_id: str, new_txn: dict = None, batch_txns: list = None) -> tuple:
-    history = get_account_history(account_id)
+def build_local_subgraph(account_id: str, new_txn: dict = None, batch_txns: list = None, user_id=None) -> tuple:
+    # user_id: history sirf isi user ke apne saved transactions se aati hai
+    # (guest = None = koi DB history nahi).
+    history = get_account_history(account_id, user_id)
 
     # batch_txns = isi request ke andar PEHLE process ho chuke transactions
     # (abhi DB mein save nahi hue, but graph detection ke liye count hone chahiye)
@@ -157,8 +159,8 @@ def detect_structuring(df_local: pd.DataFrame, account_id: str, anchor=None) -> 
     return None
 
 
-def score_graph(account_id: str, new_txn: dict = None, batch_txns: list = None) -> dict:
-    G_local, df_local, has_history = build_local_subgraph(account_id, new_txn, batch_txns)
+def score_graph(account_id: str, new_txn: dict = None, batch_txns: list = None, user_id=None) -> dict:
+    G_local, df_local, has_history = build_local_subgraph(account_id, new_txn, batch_txns, user_id)
     anchor = _abs_hours(new_txn.get("day", 0), new_txn.get("hour", 0)) if new_txn else None
 
     flags = []
@@ -199,7 +201,7 @@ def score_graph(account_id: str, new_txn: dict = None, batch_txns: list = None) 
     # jaanboojh kar accept kiya gaya cost hai, taaki fan-in genuinely kaam kare.
     if new_txn and new_txn.get("nameDest"):
         receiver_id = new_txn["nameDest"]
-        _, df_recv, recv_has_history = build_local_subgraph(receiver_id, new_txn, batch_txns)
+        _, df_recv, recv_has_history = build_local_subgraph(receiver_id, new_txn, batch_txns, user_id)
         if recv_has_history:
             fan_in = detect_fan_in(df_recv, receiver_id, anchor)
             if fan_in:

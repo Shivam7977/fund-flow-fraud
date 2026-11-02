@@ -112,6 +112,7 @@ def predict(txn: TransactionIn, request: Request):
             "nameOrig": txn_data["nameOrig"], "nameDest": txn_data["nameDest"],
             "amount_inr": txn_data["amount_inr"], "day": txn_data["day"], "hour": txn_data["hour"],
         },
+        user_id=user_id,
     )
 
     final_score, risk_level = _combine(ml_result["ml_score"], graph_result["graph_score"], graph_result["has_history"])
