@@ -17,6 +17,7 @@ from core.db import (
     create_user, get_user_by_email, create_session, get_session,
     delete_session, get_user_by_id, update_user_password, update_user_auth_provider,
     create_password_reset, get_password_reset, delete_password_reset, delete_password_resets_for_email,
+    touch_guest,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -151,7 +152,12 @@ def login(data: LoginRequest, request: Request, response: Response):
 @router.post("/logout", response_model=MessageResponse)
 def logout(request: Request, response: Response):
     session_id = request.cookies.get(settings.SESSION_COOKIE_NAME)
-    if session_id and not _is_guest_cookie(session_id):
+    if session_id and _is_guest_cookie(session_id):
+        # Ending a guest session wipes everything that guest uploaded, right now.
+        if session_id.startswith(GUEST_COOKIE_PREFIX):
+            from routes.predict_file import wipe_guest_data  # lazy: avoids a circular import
+            wipe_guest_data(session_id)
+    elif session_id:
         delete_session(session_id)
     response.delete_cookie(settings.SESSION_COOKIE_NAME)
     return MessageResponse(status="ok", message="You have been logged out successfully")
@@ -160,7 +166,6 @@ def logout(request: Request, response: Response):
 # ---------- Guest ----------
 
 GUEST_COOKIE_PREFIX = "guest-"
-GUEST_MAX_AGE = 24 * 60 * 60  # guest data is deleted after 24h, so the cookie lives that long too
 
 
 def _is_guest_cookie(value: str) -> bool:
@@ -174,12 +179,24 @@ def guest_login(request: Request, response: Response):
     response.set_cookie(
         settings.SESSION_COOKIE_NAME,
         GUEST_COOKIE_PREFIX + secrets.token_urlsafe(16),
-        max_age=GUEST_MAX_AGE,
+        # no max_age: a session cookie, gone when the browser closes
         httponly=True,
         samesite="lax",
         secure=request.url.scheme == "https",
     )
     return MessageResponse(status="ok", message="Guest mode active")
+
+
+@router.post("/guest-ping", status_code=204)
+def guest_ping(request: Request):
+    """
+    Heartbeat from dashboard pages while a guest is on the site. Guest data
+    whose owner has not pinged for GUEST_IDLE_MINUTES is deleted by the cleanup.
+    """
+    user = get_current_user(request)
+    if user and user.get("guest") is True and user.get("guest_id"):
+        touch_guest(user["guest_id"])
+    return Response(status_code=204)
 
 
 # ---------- Google OAuth ----------

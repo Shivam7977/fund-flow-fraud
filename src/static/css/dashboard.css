@@ -301,3 +301,31 @@
 .dash-modal-head .dash-sidebar-close { display: flex; }
 .dash-modal-sub { font-size: 13.5px; color: var(--text-secondary); margin: 0 0 22px; line-height: 1.5; }
 .dash-modal-error { background: var(--fraud-bg); color: var(--fraud-text); font-size: 13px; padding: 10px 12px; border-radius: 10px; margin: -6px 0 16px; }
+
+/* ---- tables scroll inside their card instead of overflowing it ---- */
+#jobs-table, #predictions-table { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.dash-header h1 { word-break: break-word; }
+
+/* ---- phones ---- */
+@media (max-width: 640px) {
+  .dash-wrap { padding: 0 16px; }
+  .dash-header { padding: 24px 0 20px; }
+  .dash-header h1 { font-size: 26px; }
+  .dash-header .dash-btn { width: 100%; }
+  .dash-panel { padding: 18px 16px; border-radius: 18px; margin-bottom: 18px; }
+  .dash-panel-head h3 { font-size: 18px; }
+  .dash-table { min-width: 560px; }
+  .dash-table td { padding: 14px 10px; font-size: 13px; }
+  .dash-table th { padding: 0 10px 10px; }
+  .dash-graph-embed iframe { height: 380px; }
+  .dash-job-summary { gap: 8px; }
+  .dash-job-summary .box { padding: 12px 6px; }
+  .dash-job-summary .box .n { font-size: 20px; }
+  .dash-stat-card { padding: 16px; }
+  .dash-stat-card .val { font-size: 22px; }
+  .dash-upload-drop { padding: 28px 16px; }
+  .dash-quick-card { padding: 18px; }
+  .dash-form-row { grid-template-columns: 1fr; }
+  .dash-result .risk-head { flex-wrap: wrap; gap: 10px; }
+  .dash-mobile-topbar { padding: 14px 16px; }
+}

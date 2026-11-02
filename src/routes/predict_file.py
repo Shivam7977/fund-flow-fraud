@@ -16,7 +16,7 @@ from core.graph_engine import score_graph
 from core.db import (
     create_job, update_job, update_job_mapping, get_job, search_jobs, get_stale_pending_jobs,
     save_prediction, get_predictions_by_job, get_activity_summary, delete_job_and_predictions,
-    delete_expired_guest_jobs,
+    delete_expired_guest_jobs, get_guest_jobs, delete_guest_jobs,
 )
 from core.csv_mapper import analyze_columns, SOFT_REQUIRED, SOFT_DEFAULTS, resolve_time_fields
 from core.pdf_report import generate_job_report_pdf
@@ -39,9 +39,10 @@ MAX_CSV_SIZE_BYTES = 10 * 1024 * 1024
 # karta hai.
 STALE_PENDING_HOURS = 24
 
-# Guests can upload too, but their data is temporary and small: deleted after
-# GUEST_RETENTION_HOURS, CSV capped at GUEST_MAX_ROWS rows / GUEST_MAX_BYTES.
-GUEST_RETENTION_HOURS = 24
+# Guests can upload too, but their data is temporary and small: deleted when the
+# guest ends the session, or after GUEST_IDLE_MINUTES without a heartbeat (i.e. they
+# left the site). CSV capped at GUEST_MAX_ROWS rows / GUEST_MAX_BYTES.
+GUEST_IDLE_MINUTES = 15
 GUEST_MAX_ROWS = 500
 GUEST_MAX_BYTES = 1 * 1024 * 1024
 
@@ -74,9 +75,15 @@ def _remove_job_files(job_id: str, file_path=None):
                 print(f"[predict_file] Could not remove {p}: {e}")
 
 
+def wipe_guest_data(guest_id: str):
+    """Delete everything one guest uploaded (called when the guest ends the session)."""
+    for e in delete_guest_jobs(guest_id):
+        _remove_job_files(e["job_id"], e.get("file_path"))
+
+
 def cleanup_expired_guest_data():
-    """Hard-delete guest jobs older than GUEST_RETENTION_HOURS: DB rows, temp CSV and graph file."""
-    cutoff = (datetime.now(timezone.utc) - timedelta(hours=GUEST_RETENTION_HOURS)).isoformat()
+    """Hard-delete guest jobs whose owner left (no heartbeat for GUEST_IDLE_MINUTES): DB rows, temp CSV, graph file."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=GUEST_IDLE_MINUTES)).isoformat()
     expired = delete_expired_guest_jobs(cutoff)
     for e in expired:
         _remove_job_files(e["job_id"], e.get("file_path"))
@@ -154,8 +161,8 @@ def process_file_job(job_id: str, file_path: str, mapping: dict, user_id, is_gue
             explanation = ml_result.get("explanation") if risk_level in ("FRAUD", "REVIEW") else None
 
             # Guests are saved too (user_id None, tied to the job via job_id) so the
-            # result page, graph and PDF can be read back; cleanup_expired_guest_data()
-            # deletes them after GUEST_RETENTION_HOURS.
+            # result page, graph and PDF can be read back; they are deleted when the
+            # guest ends the session or leaves (see cleanup_expired_guest_data).
             to_save.append(dict(
                 user_id=user_id, nameOrig=txn["nameOrig"], nameDest=txn["nameDest"],
                 amount_inr=txn["amount_inr"], hour=txn["hour"], day=txn["day"],
@@ -364,8 +371,13 @@ def list_uploads(
     dekh sakta, chahe wo kuch bhi bheje.
     """
     user = get_current_user(request)
-    if user is None or user.get("guest") is True:
+    if user is None:
         raise HTTPException(status_code=401, detail="Login required to view upload history")
+
+    if user.get("guest") is True:
+        # A guest sees only their own uploads of this session (no search / filters).
+        jobs = get_guest_jobs(user["guest_id"]) if user.get("guest_id") else []
+        return {"uploads": jobs, "page": 1, "limit": len(jobs), "total": len(jobs), "total_pages": 1}
 
     return search_jobs(
         user["id"], q=q, status=status, date_from=date_from, date_to=date_to,

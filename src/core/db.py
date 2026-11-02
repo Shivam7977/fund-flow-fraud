@@ -181,6 +181,7 @@ def init_db():
     cur.execute('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS file_path TEXT;')
     cur.execute('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS column_mapping TEXT;')
     cur.execute('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS guest_id TEXT;')
+    cur.execute('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS guest_last_seen TEXT;')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_jobs_guest ON jobs (guest_id, created_at);')
     cur.execute('ALTER TABLE predictions ADD COLUMN IF NOT EXISTS job_id TEXT;')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_pred_job_id ON predictions(job_id);')
@@ -339,23 +340,67 @@ def delete_job_and_predictions(job_id):
     release_connection(conn)
 
 
+def _delete_jobs_and_predictions(cur, rows):
+    if rows:
+        ids = [r["job_id"] for r in rows]
+        cur.execute("DELETE FROM predictions WHERE job_id = ANY(%s)", (ids,))
+        cur.execute("DELETE FROM jobs WHERE job_id = ANY(%s)", (ids,))
+
+
+def touch_guest(guest_id):
+    """Heartbeat: mark this guest as still on the site."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE jobs SET guest_last_seen = %s WHERE guest_id = %s", (now_iso(), guest_id))
+    conn.commit()
+    cur.close()
+    release_connection(conn)
+
+
+def get_guest_jobs(guest_id):
+    """This guest's own jobs for the Uploads page (no search/paging: a guest has only a few)."""
+    conn = get_connection()
+    cur = _dict_cursor(conn)
+    cur.execute("""
+        SELECT job_id, filename, status, total_rows, created_at
+        FROM jobs WHERE guest_id = %s AND user_id IS NULL
+        ORDER BY created_at DESC
+    """, (guest_id,))
+    rows = [dict(r) for r in cur.fetchall()]
+    cur.close()
+    release_connection(conn)
+    return rows
+
+
+def delete_guest_jobs(guest_id):
+    """Hard-delete everything one guest uploaded. Returns [{job_id, file_path}] for file cleanup."""
+    conn = get_connection()
+    cur = _dict_cursor(conn)
+    cur.execute("SELECT job_id, file_path FROM jobs WHERE guest_id = %s AND user_id IS NULL", (guest_id,))
+    rows = [dict(r) for r in cur.fetchall()]
+    _delete_jobs_and_predictions(cur, rows)
+    conn.commit()
+    cur.close()
+    release_connection(conn)
+    return rows
+
+
 def delete_expired_guest_jobs(cutoff_iso: str):
     """
-    Guest data is temporary: every guest job (user_id NULL, guest_id set) created
-    before cutoff is hard-deleted together with its predictions. Returns
-    [{job_id, file_path}] so the caller can also remove the temp CSV and graph file.
+    Guest data is temporary: every guest job whose owner was last seen (last
+    heartbeat, or upload time if none) before cutoff is hard-deleted together
+    with its predictions. Returns [{job_id, file_path}] so the caller can also
+    remove the temp CSV and graph file.
     """
     conn = get_connection()
     cur = _dict_cursor(conn)
-    cur.execute(
-        "SELECT job_id, file_path FROM jobs WHERE guest_id IS NOT NULL AND user_id IS NULL AND created_at < %s",
-        (cutoff_iso,),
-    )
+    cur.execute("""
+        SELECT job_id, file_path FROM jobs
+        WHERE guest_id IS NOT NULL AND user_id IS NULL
+          AND COALESCE(guest_last_seen, created_at) < %s
+    """, (cutoff_iso,))
     expired = [dict(r) for r in cur.fetchall()]
-    if expired:
-        ids = [e["job_id"] for e in expired]
-        cur.execute("DELETE FROM predictions WHERE job_id = ANY(%s)", (ids,))
-        cur.execute("DELETE FROM jobs WHERE job_id = ANY(%s)", (ids,))
+    _delete_jobs_and_predictions(cur, expired)
     conn.commit()
     cur.close()
     release_connection(conn)

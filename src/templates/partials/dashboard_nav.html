@@ -41,6 +41,7 @@
       {% if user.guest %}
         <a href="/login" class="dash-profile-item primary" style="text-align:center;">Log in</a>
         <a href="/signup" class="dash-profile-item" style="text-align:center;">Sign up</a>
+        <button type="button" id="dash-logout-btn" data-guest="1" class="dash-profile-item danger">End guest session</button>
       {% else %}
         {% if not user.password_hash %}
           <button type="button" id="dash-add-password-btn" class="dash-profile-item">Add Password</button>
@@ -135,6 +136,7 @@
     const logoutBtn = document.getElementById("dash-logout-btn");
     if (logoutBtn) {
       logoutBtn.addEventListener("click", async () => {
+        if (logoutBtn.dataset.guest && !confirm("End guest session? Everything you uploaded as a guest is deleted now.")) return;
         try {
           await fetch("/auth/logout", { method: "POST", credentials: "include" });
         } catch (err) {
@@ -143,6 +145,15 @@
         window.location.href = "/login";
       });
     }
+
+    {% if user.guest %}
+    // ---- Guest heartbeat: tells the server this guest is still on the site. ----
+    // If the pings stop (tab/browser closed, site left), the server deletes the guest's data.
+    const guestPing = () => fetch("/auth/guest-ping", { method: "POST", credentials: "include", keepalive: true }).catch(() => {});
+    guestPing();
+    setInterval(guestPing, 60000);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") guestPing(); });
+    {% endif %}
 
     // ---- Add Password modal (only rendered when the account has no password_hash) ----
     const addPasswordBtn = document.getElementById("dash-add-password-btn");

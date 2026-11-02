@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
 from contextlib import asynccontextmanager
 
 from config import settings
@@ -16,6 +17,20 @@ from routes.pages import router as pages_router
 from routes.dashboard_pages import router as dashboard_pages_router
 
 
+GUEST_CLEANUP_EVERY_SECONDS = 300
+
+
+async def _guest_cleanup_loop():
+    """Every 5 minutes: delete guest data whose owner has left (no heartbeat for 15 minutes)."""
+    from routes.predict_file import cleanup_expired_guest_data
+    while True:
+        await asyncio.sleep(GUEST_CLEANUP_EVERY_SECONDS)
+        try:
+            await asyncio.to_thread(cleanup_expired_guest_data)
+        except Exception as e:
+            print(f"[cleanup] guest cleanup failed: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup — app chalu hote hi ek baar
@@ -25,8 +40,9 @@ async def lifespan(app: FastAPI):
     from routes.predict_file import cleanup_expired_guest_data
     cleanup_expired_guest_data()
     print("✅ Database ready")
+    cleanup_task = asyncio.create_task(_guest_cleanup_loop())
     yield
-    # Shutdown (abhi kuch cleanup nahi chahiye)
+    cleanup_task.cancel()
 
 
 app = FastAPI(

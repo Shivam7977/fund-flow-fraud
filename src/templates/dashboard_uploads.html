@@ -216,13 +216,8 @@
     uploadsPage = page;
     const container = document.getElementById("jobs-table");
     const paginationEl = document.getElementById("uploads-pagination");
-    if (IS_GUEST) {
-      // Search + history are for signed-in users only. A guest's result opens right after upload.
-      document.getElementById("uploads-search").closest(".dash-form").style.display = "none";
-      container.innerHTML = `<div class="dash-empty">Guest mode: upload a CSV (up to 500 rows) and its result opens straight away. Guest data is deleted automatically after 24 hours. Sign up to keep an upload history.</div>`;
-      paginationEl.innerHTML = "";
-      return;
-    }
+    // Guests see their own uploads of this session, but no search.
+    if (IS_GUEST) document.getElementById("uploads-search").closest(".dash-form").style.display = "none";
     try {
       const params = new URLSearchParams();
       if (uploadsQuery.trim().length >= 2) params.set("q", uploadsQuery.trim());
