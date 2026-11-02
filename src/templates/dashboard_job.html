@@ -78,6 +78,7 @@
 {% block extra_scripts %}
 <script>
   const JOB_ID = {{ job_id | tojson }};
+  const IS_GUEST = {{ 'true' if user.guest else 'false' }};
 
   // SECURITY: nameOrig/nameDest/type CSV se aate hain (user-controlled
   // account names/transaction type strings). Kabhi seedha innerHTML mein
@@ -195,6 +196,7 @@
 
       let metaText = `Status: ${job.status.toUpperCase()}`;
       if (job.status === "failed" && job.error_message) metaText += ` — ${job.error_message}`;
+      if (IS_GUEST) metaText += " · Guest session: this result is deleted automatically 24 hours after upload.";
       document.getElementById("job-meta").textContent = metaText;
 
       // Report sirf tab chahiye jab job poori tarah process ho chuki ho
@@ -248,6 +250,9 @@
       }
 
       loadGraph(job.status, fraud + review);
+
+      // Still processing: look again in 2 seconds, so nobody has to refresh by hand.
+      if (job.status === "processing") setTimeout(loadJob, 2000);
     } catch (err) {
       document.getElementById("job-meta").textContent = "Couldn't load this job.";
       document.getElementById("graph-container").innerHTML = `<div class="dash-empty">—</div>`;

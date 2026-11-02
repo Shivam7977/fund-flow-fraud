@@ -22,6 +22,8 @@ async def lifespan(app: FastAPI):
     init_db()
     from routes.predict_file import cleanup_stale_pending_jobs
     cleanup_stale_pending_jobs()
+    from routes.predict_file import cleanup_expired_guest_data
+    cleanup_expired_guest_data()
     print("✅ Database ready")
     yield
     # Shutdown (abhi kuch cleanup nahi chahiye)

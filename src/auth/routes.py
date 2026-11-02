@@ -1,3 +1,4 @@
+import secrets
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -150,7 +151,7 @@ def login(data: LoginRequest, request: Request, response: Response):
 @router.post("/logout", response_model=MessageResponse)
 def logout(request: Request, response: Response):
     session_id = request.cookies.get(settings.SESSION_COOKIE_NAME)
-    if session_id and session_id != "guest":
+    if session_id and not _is_guest_cookie(session_id):
         delete_session(session_id)
     response.delete_cookie(settings.SESSION_COOKIE_NAME)
     return MessageResponse(status="ok", message="You have been logged out successfully")
@@ -158,11 +159,22 @@ def logout(request: Request, response: Response):
 
 # ---------- Guest ----------
 
+GUEST_COOKIE_PREFIX = "guest-"
+GUEST_MAX_AGE = 24 * 60 * 60  # guest data is deleted after 24h, so the cookie lives that long too
+
+
+def _is_guest_cookie(value: str) -> bool:
+    return value == "guest" or value.startswith(GUEST_COOKIE_PREFIX)
+
+
 @router.post("/guest-login", response_model=MessageResponse)
 def guest_login(request: Request, response: Response):
+    # Each guest gets a random id (not one shared constant), so a guest's
+    # uploads can be tied to, and shown only to, that one browser session.
     response.set_cookie(
         settings.SESSION_COOKIE_NAME,
-        "guest",
+        GUEST_COOKIE_PREFIX + secrets.token_urlsafe(16),
+        max_age=GUEST_MAX_AGE,
         httponly=True,
         samesite="lax",
         secure=request.url.scheme == "https",
@@ -278,8 +290,11 @@ def get_current_user(request: Request):
     session_id = request.cookies.get(settings.SESSION_COOKIE_NAME)
     if not session_id:
         return None
-    if session_id == "guest":
-        return {"guest": True}
+    if _is_guest_cookie(session_id):
+        # guest_id is None for the old shared "guest" cookie: such a session can
+        # use single checks, but cannot own uploads until it signs in as guest again.
+        guest_id = session_id if session_id.startswith(GUEST_COOKIE_PREFIX) else None
+        return {"guest": True, "guest_id": guest_id}
 
     session = get_session(session_id)
     if not session:

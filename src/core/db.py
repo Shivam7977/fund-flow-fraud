@@ -124,6 +124,7 @@ def init_db():
 
     cur.execute('CREATE INDEX IF NOT EXISTS idx_pred_nameOrig ON predictions("nameOrig");')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_pred_nameDest ON predictions("nameDest");')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_pred_user_id ON predictions(user_id);')
 
     # ---- jobs table ----
     cur.execute("""
@@ -179,6 +180,8 @@ def init_db():
     cur.execute('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS total_rows INTEGER;')
     cur.execute('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS file_path TEXT;')
     cur.execute('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS column_mapping TEXT;')
+    cur.execute('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS guest_id TEXT;')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_jobs_guest ON jobs (guest_id, created_at);')
     cur.execute('ALTER TABLE predictions ADD COLUMN IF NOT EXISTS job_id TEXT;')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_pred_job_id ON predictions(job_id);')
 
@@ -236,7 +239,15 @@ def save_prediction(user_id, nameOrig, nameDest, amount_inr, hour, day,
     release_connection(conn)
 
 
-def get_account_history(account_id):
+def get_account_history(account_id, user_id):
+    """
+    Transaction history of one account, scoped to ONE user's own saved
+    predictions. user_id is required: without it, one user's uploads would
+    change another user's scores (cross-tenant leak). Guests (user_id None)
+    have nothing saved, so they get no history.
+    """
+    if user_id is None:
+        return []
     conn = get_connection()
     cur = _dict_cursor(conn)
     # PERF: SELECT * nahi — explanation JSONB bada hota hai aur ye function har
@@ -246,9 +257,9 @@ def get_account_history(account_id):
                ml_score, graph_score, final_score, risk_level, "isFraud_label",
                predicted_at, job_id
         FROM predictions
-        WHERE "nameOrig" = %s OR "nameDest" = %s
+        WHERE user_id = %s AND ("nameOrig" = %s OR "nameDest" = %s)
         ORDER BY predicted_at DESC
-    """, (account_id, account_id))
+    """, (user_id, account_id, account_id))
     rows = cur.fetchall()
     cur.close()
     release_connection(conn)
@@ -282,13 +293,13 @@ def get_activity_summary(user_id):
 # ---------- Job helpers ----------
 
 def create_job(job_id, user_id=None, filename=None, file_path=None,
-               column_mapping=None, total_rows=None, status="processing"):
+               column_mapping=None, total_rows=None, status="processing", guest_id=None):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-        INSERT INTO jobs (job_id, user_id, status, filename, file_path, column_mapping, total_rows, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-    """, (job_id, user_id, status, filename, file_path, column_mapping, total_rows, now_iso()))
+        INSERT INTO jobs (job_id, user_id, status, filename, file_path, column_mapping, total_rows, created_at, guest_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, (job_id, user_id, status, filename, file_path, column_mapping, total_rows, now_iso(), guest_id))
     conn.commit()
     cur.close()
     release_connection(conn)
@@ -326,6 +337,29 @@ def delete_job_and_predictions(job_id):
     conn.commit()
     cur.close()
     release_connection(conn)
+
+
+def delete_expired_guest_jobs(cutoff_iso: str):
+    """
+    Guest data is temporary: every guest job (user_id NULL, guest_id set) created
+    before cutoff is hard-deleted together with its predictions. Returns
+    [{job_id, file_path}] so the caller can also remove the temp CSV and graph file.
+    """
+    conn = get_connection()
+    cur = _dict_cursor(conn)
+    cur.execute(
+        "SELECT job_id, file_path FROM jobs WHERE guest_id IS NOT NULL AND user_id IS NULL AND created_at < %s",
+        (cutoff_iso,),
+    )
+    expired = [dict(r) for r in cur.fetchall()]
+    if expired:
+        ids = [e["job_id"] for e in expired]
+        cur.execute("DELETE FROM predictions WHERE job_id = ANY(%s)", (ids,))
+        cur.execute("DELETE FROM jobs WHERE job_id = ANY(%s)", (ids,))
+    conn.commit()
+    cur.close()
+    release_connection(conn)
+    return expired
 
 
 def get_job(job_id):

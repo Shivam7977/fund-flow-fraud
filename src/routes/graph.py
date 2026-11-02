@@ -1,14 +1,18 @@
 import os
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 from pyvis.network import Network
 
+from config import settings
+from auth.routes import get_current_user
 from core.db import get_predictions_by_job, get_job
+from routes.predict_file import owns_job
 
 router = APIRouter(prefix="/predict", tags=["graph"])
 
-# src/static/graphs/ — is file (src/routes/graph.py) ke relative se compute kiya
-GRAPH_OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "graphs")
+# Generated graph HTML lives OUTSIDE /static (data/tmp_graphs/, git-ignored via data/*),
+# so it can only be reached through the owner-checked endpoint below, never as a public file.
+GRAPH_OUTPUT_DIR = os.path.join(os.path.dirname(settings.STATIC_CSV_PATH), "tmp_graphs")
 os.makedirs(GRAPH_OUTPUT_DIR, exist_ok=True)
 
 RISK_COLORS = {"FRAUD": "#e74c3c", "REVIEW": "#f39c12"}
@@ -61,9 +65,9 @@ def build_flagged_subgraph_html(job_id: str) -> str | None:
 
 
 @router.get("/file/{job_id}/graph")
-def get_flagged_graph(job_id: str):
+def get_flagged_graph(job_id: str, request: Request):
     job = get_job(job_id)
-    if not job:
+    if not job or not owns_job(get_current_user(request), job):
         raise HTTPException(status_code=404, detail="Job not found")
 
     if job["status"] != "done":

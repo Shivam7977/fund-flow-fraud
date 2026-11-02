@@ -16,6 +16,7 @@ from core.graph_engine import score_graph
 from core.db import (
     create_job, update_job, update_job_mapping, get_job, search_jobs, get_stale_pending_jobs,
     save_prediction, get_predictions_by_job, get_activity_summary, delete_job_and_predictions,
+    delete_expired_guest_jobs,
 )
 from core.csv_mapper import analyze_columns, SOFT_REQUIRED, SOFT_DEFAULTS, resolve_time_fields
 from core.pdf_report import generate_job_report_pdf
@@ -38,10 +39,49 @@ MAX_CSV_SIZE_BYTES = 10 * 1024 * 1024
 # karta hai.
 STALE_PENDING_HOURS = 24
 
+# Guests can upload too, but their data is temporary and small: deleted after
+# GUEST_RETENTION_HOURS, CSV capped at GUEST_MAX_ROWS rows / GUEST_MAX_BYTES.
+GUEST_RETENTION_HOURS = 24
+GUEST_MAX_ROWS = 500
+GUEST_MAX_BYTES = 1 * 1024 * 1024
+
 
 class ConfirmIn(BaseModel):
     column_mapping: dict | None = None      # e.g. {"hour": "transaction_hour"}
     proceed_with_defaults: bool = False      # true = missing optional fields ko default value se chalao
+
+
+def owns_job(user, job: dict) -> bool:
+    """
+    True only for the job's owner: the same logged-in user, or the same guest
+    session (matching random guest_id cookie). Everyone else gets a 404.
+    """
+    if not user or not job:
+        return False
+    if user.get("guest") is True:
+        return bool(job.get("guest_id")) and job.get("user_id") is None and job["guest_id"] == user.get("guest_id")
+    return job.get("user_id") is not None and job["user_id"] == user["id"]
+
+
+def _remove_job_files(job_id: str, file_path=None):
+    """Delete the temp CSV (if still there) and the generated graph HTML for a job."""
+    from routes.graph import GRAPH_OUTPUT_DIR
+    for p in (file_path, os.path.join(GRAPH_OUTPUT_DIR, f"{job_id}.html")):
+        if p and os.path.exists(p):
+            try:
+                os.remove(p)
+            except OSError as e:
+                print(f"[predict_file] Could not remove {p}: {e}")
+
+
+def cleanup_expired_guest_data():
+    """Hard-delete guest jobs older than GUEST_RETENTION_HOURS: DB rows, temp CSV and graph file."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=GUEST_RETENTION_HOURS)).isoformat()
+    expired = delete_expired_guest_jobs(cutoff)
+    for e in expired:
+        _remove_job_files(e["job_id"], e.get("file_path"))
+    if expired:
+        print(f"[predict_file] Deleted {len(expired)} expired guest job(s).")
 
 
 def _public_job_view(job: dict) -> dict:
@@ -50,7 +90,7 @@ def _public_job_view(job: dict) -> dict:
     filesystem path) bhi hota hai. Client ko kabhi internal path dikhana
     sahi nahi — yahi principle search_jobs() mein bhi follow hota hai.
     """
-    return {k: v for k, v in job.items() if k != "file_path"}
+    return {k: v for k, v in job.items() if k not in ("file_path", "guest_id")}
 
 
 # ---------- Background processing ----------
@@ -98,6 +138,7 @@ def process_file_job(job_id: str, file_path: str, mapping: dict, user_id, is_gue
                     "amount_inr": txn["amount_inr"], "day": txn["day"], "hour": txn["hour"],
                 },
                 batch_txns=seen_txns,
+                user_id=user_id,
             )
             final_score, risk_level = _combine(
                 ml_result["ml_score"], graph_result["graph_score"], graph_result["has_history"]
@@ -112,15 +153,17 @@ def process_file_job(job_id: str, file_path: str, mapping: dict, user_id, is_gue
 
             explanation = ml_result.get("explanation") if risk_level in ("FRAUD", "REVIEW") else None
 
-            if not is_guest:
-                to_save.append(dict(
-                    user_id=user_id, nameOrig=txn["nameOrig"], nameDest=txn["nameDest"],
-                    amount_inr=txn["amount_inr"], hour=txn["hour"], day=txn["day"],
-                    txn_type=txn["txn_type"], ml_score=ml_result["ml_score"],
-                    graph_score=graph_result["graph_score"], final_score=final_score,
-                    risk_level=risk_level, job_id=job_id, explanation=explanation,
-                    has_history=graph_result["has_history"], graph_flags=graph_result["flags"],
-                ))
+            # Guests are saved too (user_id None, tied to the job via job_id) so the
+            # result page, graph and PDF can be read back; cleanup_expired_guest_data()
+            # deletes them after GUEST_RETENTION_HOURS.
+            to_save.append(dict(
+                user_id=user_id, nameOrig=txn["nameOrig"], nameDest=txn["nameDest"],
+                amount_inr=txn["amount_inr"], hour=txn["hour"], day=txn["day"],
+                txn_type=txn["txn_type"], ml_score=ml_result["ml_score"],
+                graph_score=graph_result["graph_score"], final_score=final_score,
+                risk_level=risk_level, job_id=job_id, explanation=explanation,
+                has_history=graph_result["has_history"], graph_flags=graph_result["flags"],
+            ))
 
             seen_txns.append({
                 "nameOrig": txn["nameOrig"], "nameDest": txn["nameDest"],
@@ -177,6 +220,20 @@ def cleanup_stale_pending_jobs():
 
 @router.post("/file")
 async def upload_file(request: Request, background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+    user = get_current_user(request)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Please log in or continue as guest to upload a CSV.")
+    is_guest = user.get("guest") is True
+    user_id = None if is_guest else user["id"]
+    guest_id = user.get("guest_id") if is_guest else None
+    if is_guest:
+        if not guest_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Your guest session is out of date. Please log out and click Guest Access again.",
+            )
+        cleanup_expired_guest_data()  # keeps free disk/DB space clean even if the server never restarts
+
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported")
 
@@ -186,17 +243,23 @@ async def upload_file(request: Request, background_tasks: BackgroundTasks, file:
     file.file.seek(0, os.SEEK_END)
     file_size = file.file.tell()
     file.file.seek(0)
+    if is_guest and file_size > GUEST_MAX_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Guest uploads are limited to {GUEST_MAX_BYTES // (1024 * 1024)} MB. Sign up for larger files.",
+        )
     if file_size > MAX_CSV_SIZE_BYTES:
         raise HTTPException(
             status_code=413,
             detail=f"File too large. Max allowed size is {MAX_CSV_SIZE_BYTES // (1024 * 1024)}MB.",
         )
 
-    user = get_current_user(request)
-    is_guest = user is None or user.get("guest") is True
-    user_id = None if is_guest else user["id"]
-
     df = pd.read_csv(file.file)
+    if is_guest and len(df) > GUEST_MAX_ROWS:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Guest uploads are limited to {GUEST_MAX_ROWS} rows. Sign up to upload larger files.",
+        )
     analysis = analyze_columns(list(df.columns))
 
     if analysis["missing_hard"]:
@@ -215,7 +278,7 @@ async def upload_file(request: Request, background_tasks: BackgroundTasks, file:
         create_job(
             job_id=job_id, user_id=user_id, filename=file.filename,
             file_path=temp_path, column_mapping=json.dumps(analysis["mapping"]),
-            total_rows=len(df), status="pending_confirmation",
+            total_rows=len(df), status="pending_confirmation", guest_id=guest_id,
         )
         return {
             "job_id": job_id,
@@ -233,7 +296,7 @@ async def upload_file(request: Request, background_tasks: BackgroundTasks, file:
     create_job(
         job_id=job_id, user_id=user_id, filename=file.filename,
         file_path=temp_path, column_mapping=json.dumps(analysis["mapping"]),
-        total_rows=len(df), status="processing",
+        total_rows=len(df), status="processing", guest_id=guest_id,
     )
     background_tasks.add_task(process_file_job, job_id, temp_path, analysis["mapping"], user_id, is_guest)
     return {"job_id": job_id, "status": "processing", "total_rows": len(df)}
@@ -248,14 +311,8 @@ def confirm_file(job_id: str, body: ConfirmIn, request: Request, background_task
     user = get_current_user(request)
     is_guest = user is None or user.get("guest") is True
 
-    # SECURITY: agar job ek real (logged-in) user ne upload ki thi, sirf wahi
-    # user ise confirm kar sake — warna koi bhi doosra caller kisi aur ke
-    # pending job ko apni mapping/defaults ke saath confirm kar sakta tha.
-    # Guest-uploaded jobs (user_id None) ke liye koi reliable per-guest
-    # identity nahi hai abhi, isliye wahan yeh check nahi laga (low severity —
-    # job_id ek hard-to-guess UUID hai, aur guest ka result kahin persist
-    # bhi nahi hota).
-    if job["user_id"] is not None and (is_guest or user["id"] != job["user_id"]):
+    # SECURITY: only the job's owner (same user, or same guest session) may confirm it.
+    if not owns_job(user, job):
         raise HTTPException(status_code=404, detail="Job not found or already processed")
 
     stored_mapping = json.loads(job["column_mapping"]) if job.get("column_mapping") else {}
@@ -279,14 +336,11 @@ def confirm_file(job_id: str, body: ConfirmIn, request: Request, background_task
 
 
 @router.get("/file/{job_id}")
-def get_file_job_status(job_id: str):
-    # NOTE: jaanboojh kar unauthenticated hai — guest bhi apne job_id se
-    # status poll kar sake (guest ke paas login nahi, /uploads/{job_id} use
-    # nahi kar sakta). job_id ek hard-to-guess UUID hai, isliye isse kaam
-    # chal jaata hai, lekin internal file_path kabhi bhi kisi ko nahi
-    # dikhna chahiye — isliye _public_job_view() se filter karte hain.
+def get_file_job_status(job_id: str, request: Request):
+    # Owner-only (same user or same guest session); internal fields are
+    # stripped by _public_job_view().
     job = get_job(job_id)
-    if not job:
+    if not job or not owns_job(get_current_user(request), job):
         raise HTTPException(status_code=404, detail="Job not found")
     return _public_job_view(job)
 
@@ -322,11 +376,11 @@ def list_uploads(
 @uploads_router.get("/uploads/{job_id}")
 def get_upload_detail(job_id: str, request: Request):
     user = get_current_user(request)
-    if user is None or user.get("guest") is True:
+    if user is None:
         raise HTTPException(status_code=401, detail="Login required")
 
     job = get_job(job_id)
-    if not job or job["user_id"] != user["id"]:
+    if not job or not owns_job(user, job):
         raise HTTPException(status_code=404, detail="Upload not found")
 
     return {"job": _public_job_view(job), "predictions": get_predictions_by_job(job_id)}
@@ -335,18 +389,17 @@ def get_upload_detail(job_id: str, request: Request):
 @uploads_router.get("/uploads/{job_id}/report")
 def download_job_report(job_id: str, request: Request):
     """
-    Job ka PDF investigation report. Login-required hai — guest ke
-    predictions kabhi DB mein save hi nahi hote, isliye unka report
-    banane ke liye data maujood hi nahi hota. PDF kabhi store nahi hoti,
+    Job ka PDF investigation report. Login-required hai — guest ki
+    upload ka report bhi milta hai (jab tak data 24h mein delete na ho). PDF kabhi store nahi hoti,
     har baar on-demand banake turant bhej di jaati hai, response jaate hi
     temp file BackgroundTask se delete ho jaati hai.
     """
     user = get_current_user(request)
-    if user is None or user.get("guest") is True:
+    if user is None:
         raise HTTPException(status_code=401, detail="Login required to download reports")
 
     job = get_job(job_id)
-    if not job or job["user_id"] != user["id"]:
+    if not job or not owns_job(user, job):
         raise HTTPException(status_code=404, detail="Upload not found")
 
     predictions = get_predictions_by_job(job_id)
@@ -382,14 +435,15 @@ def delete_upload(job_id: str, request: Request):
     delete call se pehle.
     """
     user = get_current_user(request)
-    if user is None or user.get("guest") is True:
+    if user is None:
         raise HTTPException(status_code=401, detail="Login required")
 
     job = get_job(job_id)
-    if not job or job["user_id"] != user["id"]:
+    if not job or not owns_job(user, job):
         raise HTTPException(status_code=404, detail="Upload not found")
 
     delete_job_and_predictions(job_id)
+    _remove_job_files(job_id, job.get("file_path"))
     return {"status": "ok", "message": "Job permanently deleted"}
 
 
