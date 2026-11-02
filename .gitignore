@@ -34,3 +34,6 @@ Thumbs.db
 
 # don't push zip files 
 *.zip
+
+# don't push csv files.
+!tests/fixtures/demo_transactions.csv

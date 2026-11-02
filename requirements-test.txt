@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# Tests only. Run: python -m pytest -q
+pytest==9.2.0
